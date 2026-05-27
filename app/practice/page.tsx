@@ -95,6 +95,9 @@ export default function PracticeQuiz() {
 
   // Category Selection Screen
   if (screen === "select") {
+    const allSelected = selectedCategories.length === categories.length;
+    const estimatedMinutes = Math.round(questionCount * 0.75);
+
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10">
         <div className="bg-white p-10 rounded-2xl shadow-lg w-full max-w-lg border border-slate-100">
@@ -104,37 +107,59 @@ export default function PracticeQuiz() {
           {loading ? (
             <p className="text-slate-400">Loading categories...</p>
           ) : (
-            <div className="flex flex-col space-y-3 mb-8">
-              {categories.map((cat) => (
-                <label
-                  key={cat}
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                    selectedCategories.includes(cat)
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-slate-200 hover:border-blue-300"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedCategories.includes(cat)}
-                    onChange={() => toggleCategory(cat)}
-                    className="w-5 h-5 accent-blue-600"
-                  />
-                  <span className="font-semibold text-slate-700">{cat}</span>
-                </label>
-              ))}
-            </div>
+            <>
+              {/* Select All */}
+              <label className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${
+                allSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-300"
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() =>
+                    allSelected
+                      ? setSelectedCategories([])
+                      : setSelectedCategories([...categories])
+                  }
+                  className="w-5 h-5 accent-blue-600"
+                />
+                <span className="font-bold text-slate-700">Select All Categories</span>
+              </label>
+
+              <div className="flex flex-col space-y-3 mb-8">
+                {categories.map((cat) => (
+                  <label
+                    key={cat}
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      selectedCategories.includes(cat)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(cat)}
+                      onChange={() => toggleCategory(cat)}
+                      className="w-5 h-5 accent-blue-600"
+                    />
+                    <span className="font-semibold text-slate-700">{cat}</span>
+                  </label>
+                ))}
+              </div>
+            </>
           )}
 
+          {/* Question Count Slider */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-bold text-slate-700">Number of Questions</label>
-              <span className="text-sm font-bold text-blue-600">{questionCount}</span>
+              <span className="text-sm font-bold text-blue-600">
+                {questionCount} questions (~{estimatedMinutes} min)
+              </span>
             </div>
             <input
               type="range"
               min={5}
-              max={50}
+              max={100}
               step={1}
               value={questionCount}
               onChange={(e) => setQuestionCount(Number(e.target.value))}
@@ -142,7 +167,7 @@ export default function PracticeQuiz() {
             />
             <div className="flex justify-between text-xs text-slate-400 mt-1">
               <span>5</span>
-              <span>50</span>
+              <span>100</span>
             </div>
           </div>
 

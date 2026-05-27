@@ -3,21 +3,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 
 export default function Sidebar() {
   const [checkrideOpen, setCheckrideOpen] = useState(false);
   const pathname = usePathname();
 
   const linkClass = (href: string) =>
-    `p-3 rounded-lg hover:bg-slate-800 transition text-sm font-medium ${
-      pathname === href ? "bg-slate-800 text-white" : "text-slate-300"
+    `p-3 rounded-lg transition text-sm font-medium flex items-center gap-2 ${
+      pathname === href
+        ? "bg-blue-600 text-white shadow-md"
+        : "text-slate-300 hover:bg-slate-800"
     }`;
 
   return (
     <nav className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-10 shrink-0">
       <div className="p-6 bg-slate-950 border-b border-slate-800">
         <h1 className="text-2xl font-bold text-blue-400 tracking-tight">CheckrideAI</h1>
-        <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest">Ace your Checkride</p>
+        <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest">Ace your checkride.</p>
       </div>
 
       <div className="flex flex-col p-4 space-y-2 flex-grow">
@@ -34,12 +37,19 @@ export default function Sidebar() {
         {/* Checkride Prep Dropdown */}
         <button
           onClick={() => setCheckrideOpen((prev) => !prev)}
-          className="p-3 rounded-lg hover:bg-slate-800 transition text-sm font-medium text-slate-300 flex justify-between items-center w-full"
+          className={`p-3 rounded-lg hover:bg-slate-800 transition text-sm font-medium text-slate-300 flex justify-between items-center w-full ${
+            (pathname === "/oral" || pathname === "/checklist") && !checkrideOpen
+              ? "bg-slate-800 text-white"
+              : ""
+          }`}
         >
           <span>Checkride Prep</span>
-          <span className={`text-slate-400 transition-transform duration-200 text-xl ${checkrideOpen ? "rotate-180" : ""}`}>
-            ▾
-          </span>
+          <ChevronDown
+            size={18}
+            className={`text-slate-400 transition-transform duration-200 ${
+              checkrideOpen ? "rotate-180" : ""
+            }`}
+          />
         </button>
 
         {checkrideOpen && (
