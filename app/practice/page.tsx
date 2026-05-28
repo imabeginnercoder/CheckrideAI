@@ -80,10 +80,30 @@ export default function PracticeQuiz() {
     setScore(finalScore);
     setScreen("results");
     setIsSaving(true);
-    const { error } = await supabase
+
+    const sessionId = `session_${Date.now()}`;
+
+    const { error: scoreError } = await supabase
       .from("quiz_scores")
-      .insert([{ score: finalScore, total_questions: questions.length, category: selectedCategories.join(", ") }]);
-    if (error) console.error(error);
+      .insert([{
+        score: finalScore,
+        total_questions: questions.length,
+       category: selectedCategories.join(", ")
+    }]);
+    if (scoreError) console.error(scoreError);
+
+    const questionResults = questions.map((q, i) => ({
+      question_id: q.id,
+      category: q.category,
+      correct: answers[i] === q.correct_answer,
+      session_id: sessionId,
+    }));
+
+    const { error: resultsError } = await supabase
+      .from("question_results")
+      .insert(questionResults);
+    if (resultsError) console.error(resultsError);
+
     setIsSaving(false);
   };
 
