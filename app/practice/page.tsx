@@ -12,6 +12,7 @@ type Question = {
   option_c: string;
   correct_answer: string;
   explanation: string;
+  image_url: string | null;
 };
 
 export default function PracticeQuiz() {
@@ -290,6 +291,16 @@ export default function PracticeQuiz() {
             <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider rounded-full">
               {question.category}
             </span>
+            
+            {question.image_url && (
+                <div className="ml-4 mt-4 mb-6">
+                  <img
+                    src={question.image_url}
+                    alt="Question reference image"
+                    className="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain"
+                  />
+                </div>
+              )}
 
             <h2 className="ml-4 text-2xl font-semibold mt-4 mb-8 text-slate-800 leading-relaxed">
               {question.question_text}

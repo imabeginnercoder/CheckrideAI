@@ -109,6 +109,37 @@ export default function OralPage() {
     }
   };
 
+  const requestHint = async () => {
+    if (isLoading) return;
+
+    const hintMessages: Message[] = [
+      ...messages,
+      { role: "user", content: "HINT_REQUESTED" },
+    ];
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: "💡 Hint requested" },
+    ]);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: hintMessages, mode, questionCount }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply },
+      ]);
+    } catch (err) {
+      console.error(err);
+    }
+
+    setIsLoading(false);
+  };
+
   const resetSession = () => {
     setMessages([]);
     setInput("");
@@ -252,6 +283,15 @@ export default function OralPage() {
       <div className="bg-white border-t border-slate-200 px-4 py-4 shrink-0">
         <div className="max-w-3xl mx-auto">
           <div className="flex gap-3 items-end">
+            {mode !== "checkride" && (
+              <button
+                onClick={requestHint}
+                disabled={isLoading}
+                className="bg-slate-100 text-slate-600 font-bold px-4 py-3 rounded-xl hover:bg-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm border-2 border-slate-200"
+              >
+                Hint
+              </button>
+            )}
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
