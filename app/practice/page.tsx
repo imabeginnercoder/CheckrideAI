@@ -300,7 +300,7 @@ export default function PracticeQuiz() {
                     className="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain"
                   />
                 </div>
-              )}
+            )}
 
             <h2 className="ml-4 text-2xl font-semibold mt-4 mb-8 text-slate-800 leading-relaxed">
               {question.question_text}
