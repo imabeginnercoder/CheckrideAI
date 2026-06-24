@@ -103,6 +103,14 @@ function CategoryBar({ stat }: { stat: CategoryStat }) {
   );
 }
 
+type InProgressSession = {
+  currentIndex: number;
+  questions: { category: string }[];
+  answers: Record<number, string>;
+  selectedCategories: string[];
+  questionCount: number;
+} | null;
+
 export default function Dashboard() {
   const [scores, setScores] = useState<ScoreRow[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
@@ -110,6 +118,19 @@ export default function Dashboard() {
   const [totalSessions, setTotalSessions] = useState(0);
   const [recentTrend, setRecentTrend] = useState<{ recent: number; previous: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inProgress, setInProgress] = useState<InProgressSession>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("practice_session");
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s.screen === "quiz" && s.questions?.length > 0) {
+          setInProgress(s);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -200,6 +221,35 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
         <p className="text-slate-500 mt-0.5 text-sm">Track your progress toward checkride readiness.</p>
       </div>
+
+      {/* In-progress session banner */}
+      {inProgress && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-indigo-900">Practice session in progress</p>
+              <p className="text-xs text-indigo-600 mt-0.5">
+                {inProgress.selectedCategories.join(", ")} · Question {inProgress.currentIndex + 1} of {inProgress.questions.length} · {Object.keys(inProgress.answers).length} answered
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { sessionStorage.removeItem("practice_session"); setInProgress(null); }}
+              className="text-xs font-medium text-indigo-400 hover:text-indigo-700 transition px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+            >
+              Discard
+            </button>
+            <a
+              href="/practice"
+              className="text-xs font-semibold bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 transition"
+            >
+              Continue →
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Dials */}
       <div className="flex gap-4 mb-4">

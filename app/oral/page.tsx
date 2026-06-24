@@ -36,14 +36,27 @@ const modeInfo = {
   },
 };
 
+function loadOralSession() {
+  try {
+    const raw = sessionStorage.getItem("oral_session");
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export default function OralPage() {
-  const [screen, setScreen] = useState<"select" | "chat">("select");
-  const [mode, setMode] = useState<Mode>("intermediate");
-  const [questionCount, setQuestionCount] = useState(10);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const saved = typeof window !== "undefined" ? loadOralSession() : null;
+
+  const [screen, setScreen] = useState<"select" | "chat">(saved?.screen ?? "select");
+  const [mode, setMode] = useState<Mode>(saved?.mode ?? "intermediate");
+  const [questionCount, setQuestionCount] = useState(saved?.questionCount ?? 10);
+  const [messages, setMessages] = useState<Message[]>(saved?.messages ?? []);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    sessionStorage.setItem("oral_session", JSON.stringify({ screen, mode, questionCount, messages }));
+  }, [screen, mode, questionCount, messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -147,6 +160,7 @@ export default function OralPage() {
   };
 
   const resetSession = () => {
+    sessionStorage.removeItem("oral_session");
     setMessages([]);
     setInput("");
     setScreen("select");

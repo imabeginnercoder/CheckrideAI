@@ -15,18 +15,34 @@ type Question = {
   image_url: string | null;
 };
 
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem("practice_session");
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 export default function PracticeQuiz() {
-  const [screen, setScreen] = useState<"select" | "quiz" | "results">("select");
+  const saved = typeof window !== "undefined" ? loadSession() : null;
+
+  const [screen, setScreen] = useState<"select" | "quiz" | "results">(saved?.screen ?? "select");
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string>>({});
-  const [score, setScore] = useState(0);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(saved?.selectedCategories ?? []);
+  const [questions, setQuestions] = useState<Question[]>(saved?.questions ?? []);
+  const [currentIndex, setCurrentIndex] = useState(saved?.currentIndex ?? 0);
+  const [answers, setAnswers] = useState<Record<number, string>>(saved?.answers ?? {});
+  const [score, setScore] = useState(saved?.score ?? 0);
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [questionCount, setQuestionCount] = useState(20);
-  const [optionOrders, setOptionOrders] = useState<Record<number, ("option_a" | "option_b" | "option_c")[]>>({});
+  const [questionCount, setQuestionCount] = useState(saved?.questionCount ?? 20);
+  const [optionOrders, setOptionOrders] = useState<Record<number, ("option_a" | "option_b" | "option_c")[]>>(saved?.optionOrders ?? {});
+
+  // Persist session state to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem("practice_session", JSON.stringify({
+      screen, selectedCategories, questions, currentIndex, answers, score, questionCount, optionOrders,
+    }));
+  }, [screen, selectedCategories, questions, currentIndex, answers, score, questionCount, optionOrders]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -220,7 +236,7 @@ export default function PracticeQuiz() {
             <p className="text-sm font-bold text-green-500 mb-6">Score saved!</p>
           )}
           <button
-            onClick={() => setScreen("select")}
+            onClick={() => { sessionStorage.removeItem("practice_session"); setScreen("select"); setQuestions([]); setAnswers({}); setCurrentIndex(0); setScore(0); }}
             className="w-full bg-slate-900 text-white px-6 py-4 rounded-xl hover:bg-slate-800 font-bold shadow-md transition-all"
           >
             Practice Again
@@ -278,10 +294,18 @@ export default function PracticeQuiz() {
               <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Practice Questions</h1>
               <p className="text-slate-500 mt-1">{selectedCategories.join(", ")}</p>
             </div>
-            <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
-              <span className="text-slate-600 font-bold text-sm">
-                Question {currentIndex + 1} of {questions.length}
-              </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { window.location.href = "/"; }}
+                className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
+              >
+                Save & Quit
+              </button>
+              <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                <span className="text-slate-600 font-bold text-sm">
+                  Question {currentIndex + 1} of {questions.length}
+                </span>
+              </div>
             </div>
           </div>
 
