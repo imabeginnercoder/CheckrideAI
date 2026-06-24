@@ -39,24 +39,24 @@ function AnimatedDial({ percentage, label, color, count }: {
   const fillLength = animated ? trackLength * (percentage / 100) : 0;
 
   return (
-    <div className="flex flex-col items-center p-8 bg-white rounded-2xl shadow-lg border border-slate-100 flex-1">
+    <div className="flex flex-col items-center p-8 bg-white rounded-xl border border-slate-200 flex-1">
       <svg width="140" height="130" viewBox="0 0 140 130">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth="10"
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth="8"
           strokeDasharray={`${trackLength} ${circumference - trackLength}`} strokeLinecap="round"
           style={{ transform: "rotate(135deg)", transformOrigin: `${cx}px ${cy}px` }} />
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="10"
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="8"
           strokeDasharray={`${fillLength} ${circumference}`} strokeLinecap="round"
           style={{ transform: "rotate(135deg)", transformOrigin: `${cx}px ${cy}px`,
             transition: "stroke-dasharray 1.5s cubic-bezier(0.4, 0, 0.2, 1)" }} />
-        <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontSize: "24px", fontWeight: "800", fill: "#1e293b" }}>
+        <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontSize: "22px", fontWeight: "700", fill: "#0f172a" }}>
           {count === 0 ? "--" : `${Math.round(percentage)}%`}
         </text>
-        <text x={cx} y={cy + 14} textAnchor="middle" style={{ fontSize: "11px", fill: "#94a3b8", fontWeight: "600" }}>
-          {count === 0 ? "no data yet" : "avg score"}
+        <text x={cx} y={cy + 14} textAnchor="middle" style={{ fontSize: "10px", fill: "#94a3b8", fontWeight: "500", letterSpacing: "0.05em" }}>
+          {count === 0 ? "no data yet" : "AVG SCORE"}
         </text>
       </svg>
-      <p className="text-sm font-bold text-slate-700 mt-2">{label}</p>
-      <p className="text-xs text-slate-400 mt-1">{count} session{count !== 1 ? "s" : ""}</p>
+      <p className="text-sm font-semibold text-slate-700 mt-1">{label}</p>
+      <p className="text-xs text-slate-400 mt-0.5">{count} session{count !== 1 ? "s" : ""}</p>
     </div>
   );
 }
@@ -70,31 +70,33 @@ function CategoryBar({ stat }: { stat: CategoryStat }) {
   }, []);
 
   const pct = stat.percentage;
-  const color = pct >= 80 ? "#22c55e" : pct >= 70 ? "#fca5a5" : pct >= 60 ? "#f59e0b" : "#ef4444";
-  const label = pct >= 90 ? "Strong" : pct >= 80 ? "Improving" : pct >= 70 ? "Needs work" : "Weak";
+  const barColor = pct >= 80 ? "#4f46e5" : pct >= 70 ? "#f59e0b" : "#ef4444";
+  const labelText = pct >= 90 ? "Strong" : pct >= 80 ? "Good" : pct >= 70 ? "Needs work" : "Weak";
+  const labelStyle = pct >= 80
+    ? { bg: "#eef2ff", color: "#4338ca" }
+    : pct >= 70
+    ? { bg: "#fef3c7", color: "#b45309" }
+    : { bg: "#fee2e2", color: "#b91c1c" };
 
   return (
     <div className="flex items-center gap-4 py-3">
       <div className="w-44 shrink-0">
-        <p className="text-sm font-semibold text-slate-700 truncate">{stat.category}</p>
-        <p className="text-xs text-slate-400">{stat.total} questions answered</p>
+        <p className="text-sm font-medium text-slate-800 truncate">{stat.category}</p>
+        <p className="text-xs text-slate-400">{stat.total} answered</p>
       </div>
-      <div className="flex-1 bg-slate-100 rounded-full h-3 overflow-hidden">
+      <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
         <div
-          className="h-3 rounded-full transition-all duration-1000"
-          style={{ width: animated ? `${pct}%` : "0%", backgroundColor: color }}
+          className="h-2 rounded-full transition-all duration-1000"
+          style={{ width: animated ? `${pct}%` : "0%", backgroundColor: barColor }}
         />
       </div>
-      <div className="w-12 text-right">
-        <span className="text-sm font-bold" style={{ color }}>{Math.round(pct)}%</span>
+      <div className="w-10 text-right">
+        <span className="text-sm font-semibold" style={{ color: barColor }}>{Math.round(pct)}%</span>
       </div>
       <div className="w-24 text-right">
-        <span className="text-xs font-bold px-2 py-1 rounded-full"
-          style={{
-            backgroundColor: pct >= 90 ? "#dcfce7" : pct >= 80 ? "#d1fae5" : pct >= 70 ? "#fee2e2" : pct >= 60 ? "#fef3c7" : "#fee2e2",
-            color: pct >= 90 ? "#15803d" : pct >= 80 ? "#065f46" : pct >= 70 ? "#b91c1c" : pct >= 60 ? "#b45309" : "#b91c1c"
-          }}>
-          {label}
+        <span className="text-xs font-medium px-2 py-1 rounded-md"
+          style={{ backgroundColor: labelStyle.bg, color: labelStyle.color }}>
+          {labelText}
         </span>
       </div>
     </div>
@@ -192,65 +194,66 @@ export default function Dashboard() {
   const displayScores = scores.filter(s => s.category !== "Test Run");
 
   return (
-    <div className="p-10 max-w-5xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl font-extrabold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 mt-1">Track your progress and study history.</p>
+    <div className="p-8 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-500 mt-0.5 text-sm">Track your progress toward checkride readiness.</p>
       </div>
 
       {/* Dials */}
-      <div className="flex gap-6 mb-6">
-        <AnimatedDial percentage={avgPractice} label="Avg Practice Score" color="#3b82f6" count={practiceScores.length} />
-        <AnimatedDial percentage={avgExam} label="Avg Exam Score" color="#8b5cf6" count={examScores.length} />
+      <div className="flex gap-4 mb-4">
+        <AnimatedDial percentage={avgPractice} label="Avg Practice Score" color="#4f46e5" count={practiceScores.length} />
+        <AnimatedDial percentage={avgExam} label="Avg Exam Score" color="#7c3aed" count={examScores.length} />
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-10">
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Total Questions Answered</p>
-          <p className="text-4xl font-extrabold text-slate-900">{totalAnswered}</p>
-          <p className="text-xs text-slate-400 mt-1">across all practice sessions</p>
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Questions Answered</p>
+          <p className="text-3xl font-bold text-slate-900">{totalAnswered}</p>
+          <p className="text-xs text-slate-400 mt-1">across all sessions</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Total Sessions</p>
-          <p className="text-4xl font-extrabold text-slate-900">{totalSessions}</p>
-          <p className="text-xs text-slate-400 mt-1">practice sessions completed</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sessions Completed</p>
+          <p className="text-3xl font-bold text-slate-900">{totalSessions}</p>
+          <p className="text-xs text-slate-400 mt-1">practice sessions</p>
         </div>
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Score Trend</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Score Trend</p>
           {recentTrend ? (
             <>
-              <p className="text-4xl font-extrabold" style={{
-                color: recentTrend.recent >= recentTrend.previous ? "#22c55e" : "#ef4444"
+              <p className="text-3xl font-bold" style={{
+                color: recentTrend.recent >= recentTrend.previous ? "#16a34a" : "#dc2626"
               }}>
                 {recentTrend.recent >= recentTrend.previous ? "↑" : "↓"} {Math.abs(recentTrend.recent - recentTrend.previous)}%
               </p>
               <p className="text-xs text-slate-400 mt-1">
-                recent avg {recentTrend.recent}% vs previous {recentTrend.previous}%
+                {recentTrend.recent}% recent vs {recentTrend.previous}% before
               </p>
             </>
           ) : (
             <>
-              <p className="text-4xl font-extrabold text-slate-300">--</p>
-              <p className="text-xs text-slate-400 mt-1">complete more sessions to see trend</p>
+              <p className="text-3xl font-bold text-slate-200">—</p>
+              <p className="text-xs text-slate-400 mt-1">more sessions needed</p>
             </>
           )}
         </div>
       </div>
 
-      {/* Performance Analytics */}
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden mb-8">
-        <div className="p-6 border-b border-slate-100">
-          <h2 className="text-xl font-extrabold text-slate-900">Performance by Category</h2>
-          <p className="text-slate-500 text-sm mt-1">Based on {totalAnswered} questions answered across all sessions.</p>
+      {/* Performance by Category */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+        <div className="px-6 py-5 border-b border-slate-100">
+          <h2 className="text-base font-semibold text-slate-900">Performance by Category</h2>
+          <p className="text-slate-400 text-xs mt-0.5">{totalAnswered} questions answered across all sessions</p>
         </div>
 
         {loading ? (
-          <div className="p-10 text-center text-slate-400">Loading analytics...</div>
+          <div className="p-10 text-center text-slate-400 text-sm">Loading analytics...</div>
         ) : categoryStats.length === 0 ? (
-          <div className="p-10 text-center text-slate-400">Complete a practice session to see category performance.</div>
+          <div className="p-10 text-center text-slate-400 text-sm">Complete a practice session to see category performance.</div>
         ) : (
-          <div className="px-6 py-2 divide-y divide-slate-100">
+          <div className="px-6 py-1 divide-y divide-slate-100">
             {categoryStats.map((stat) => (
               <CategoryBar key={stat.category} stat={stat} />
             ))}
@@ -260,45 +263,49 @@ export default function Dashboard() {
 
       {/* Study Recommendations */}
       {(weakCategories.length > 0 || strongCategories.length > 0) && (
-        <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden mb-8">
-          <div className="p-6 border-b border-slate-100">
-            <h2 className="text-xl font-extrabold text-slate-900">Study Recommendations</h2>
-            <p className="text-slate-500 text-sm mt-1">Based on your performance across all categories.</p>
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+          <div className="px-6 py-5 border-b border-slate-100">
+            <h2 className="text-base font-semibold text-slate-900">Study Recommendations</h2>
+            <p className="text-slate-400 text-xs mt-0.5">Based on your performance across all categories</p>
           </div>
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-5">
             {weakCategories.length > 0 && (
               <div>
-                <p className="text-sm font-extrabold text-rose-600 mb-3">Needs Attention</p>
-                {weakCategories.map((cat) => (
-                  <div key={cat.category} className="flex items-start gap-3 mb-3">
-                    <span className="w-2 h-2 rounded-full bg-rose-500 mt-2 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{cat.category}</p>
-                      <p className="text-xs text-slate-500">
-                        You are getting {Math.round(cat.percentage)}% correct across {cat.total} questions.
-                        {cat.percentage < 50
-                          ? " This is a significant weak area — prioritize this before your checkride."
-                          : " A little more review here will make a big difference."}
-                      </p>
+                <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider mb-3">Needs Attention</p>
+                <div className="space-y-2.5">
+                  {weakCategories.map((cat) => (
+                    <div key={cat.category} className="flex items-start gap-3">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-2 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{cat.category}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {Math.round(cat.percentage)}% correct across {cat.total} questions.
+                          {cat.percentage < 50
+                            ? " Significant weak area — prioritize before your checkride."
+                            : " A bit more review here will make a difference."}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
             {strongCategories.length > 0 && (
               <div>
-                <p className="text-sm font-extrabold text-green-600 mb-3">Strong Areas</p>
-                {strongCategories.map((cat) => (
-                  <div key={cat.category} className="flex items-start gap-3 mb-3">
-                    <span className="w-2 h-2 rounded-full bg-green-500 mt-2 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800">{cat.category}</p>
-                      <p className="text-xs text-slate-500">
-                        {Math.round(cat.percentage)}% correct across {cat.total} questions. Keep it up.
-                      </p>
+                <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-3">Strong Areas</p>
+                <div className="space-y-2.5">
+                  {strongCategories.map((cat) => (
+                    <div key={cat.category} className="flex items-start gap-3">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{cat.category}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {Math.round(cat.percentage)}% correct across {cat.total} questions.
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -306,34 +313,36 @@ export default function Dashboard() {
       )}
 
       {/* Score History */}
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-100">
-          <h2 className="text-xl font-extrabold text-slate-900">Score History</h2>
-          <p className="text-slate-500 text-sm mt-1">Your recent practice sessions and exams.</p>
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100">
+          <h2 className="text-base font-semibold text-slate-900">Score History</h2>
+          <p className="text-slate-400 text-xs mt-0.5">Recent practice sessions and exams</p>
         </div>
         {loading ? (
-          <div className="p-10 text-center text-slate-400">Loading scores...</div>
+          <div className="p-10 text-center text-slate-400 text-sm">Loading scores...</div>
         ) : displayScores.length === 0 ? (
-          <div className="p-10 text-center text-slate-400">No scores yet. Complete a practice set or exam to see your history here.</div>
+          <div className="p-10 text-center text-slate-400 text-sm">No scores yet. Complete a practice set to see your history.</div>
         ) : (
           <div className="divide-y divide-slate-100">
             <div className="grid grid-cols-4 px-6 py-3 bg-slate-50">
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Date</span>
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Categories</span>
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Questions</span>
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Score</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Date</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Category</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Questions</span>
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Score</span>
             </div>
             {displayScores.map((s) => {
               const pct = Math.round((s.score / s.total_questions) * 100);
               const isPassing = pct >= 70;
               return (
-                <div key={s.id} className="grid grid-cols-4 px-6 py-4 items-center hover:bg-slate-50 transition">
-                  <span className="text-sm text-slate-600">{formatDate(s.created_at)}</span>
+                <div key={s.id} className="grid grid-cols-4 px-6 py-3.5 items-center hover:bg-slate-50 transition-colors">
+                  <span className="text-sm text-slate-500">{formatDate(s.created_at)}</span>
                   <span className="text-sm text-slate-700 font-medium">{s.category}</span>
-                  <span className="text-sm text-slate-600">{s.total_questions} questions</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-slate-800">{s.score}/{s.total_questions}</span>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${isPassing ? "bg-green-100 text-green-700" : "bg-rose-100 text-rose-700"}`}>
+                  <span className="text-sm text-slate-500">{s.total_questions} questions</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm font-semibold text-slate-800">{s.score}/{s.total_questions}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
+                      isPassing ? "bg-indigo-50 text-indigo-700" : "bg-rose-50 text-rose-700"
+                    }`}>
                       {pct}%
                     </span>
                   </div>

@@ -13,20 +13,26 @@ const modeInfo = {
   beginner: {
     label: "Beginner",
     description: "Early in training. Covers fundamentals — basic aerodynamics, primary controls, simple weather, and basic regulations.",
-    badge: "bg-emerald-100 text-emerald-700",
-    selectedStyle: "border-emerald-500 bg-emerald-500",
+    accentColor: "#16a34a",
+    badgeStyle: "bg-green-50 text-green-700",
+    borderActive: "border-green-500",
+    bgActive: "bg-green-600",
   },
   intermediate: {
     label: "Intermediate",
-    description: "More than halfway through training. Covers cross country planning, weather products, airspace, systems, and performance.",
-    badge: "bg-amber-100 text-amber-700",
-    selectedStyle: "border-amber-500 bg-amber-500",
+    description: "More than halfway through training. Covers cross-country planning, weather products, airspace, systems, and performance.",
+    accentColor: "#d97706",
+    badgeStyle: "bg-amber-50 text-amber-700",
+    borderActive: "border-amber-500",
+    bgActive: "bg-amber-500",
   },
   checkride: {
     label: "Checkride Ready",
     description: "Final prep before your checkride. Full ACS-level oral covering all required knowledge areas. No hints given.",
-    badge: "bg-rose-100 text-rose-700",
-    selectedStyle: "border-rose-500 bg-rose-500",
+    accentColor: "#dc2626",
+    badgeStyle: "bg-rose-50 text-rose-700",
+    borderActive: "border-rose-500",
+    bgActive: "bg-rose-600",
   },
 };
 
@@ -118,7 +124,7 @@ export default function OralPage() {
     ];
     setMessages((prev) => [
       ...prev,
-      { role: "user", content: "💡 Hint requested" },
+      { role: "user", content: "Hint requested" },
     ]);
     setIsLoading(true);
 
@@ -148,12 +154,12 @@ export default function OralPage() {
 
   if (screen === "select") {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10">
-        <div className="bg-white p-10 rounded-2xl shadow-lg w-full max-w-xl border border-slate-100">
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-1">Mock Oral AI DPE</h1>
-          <p className="text-slate-500 mb-8">Select a practice mode and session length to begin.</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
+        <div className="bg-white p-8 rounded-xl border border-slate-200 w-full max-w-lg">
+          <h1 className="text-xl font-bold text-slate-900 mb-1">Mock Oral AI DPE</h1>
+          <p className="text-slate-500 text-sm mb-7">Select a practice mode and session length to begin.</p>
 
-          <div className="flex flex-col space-y-3 mb-8">
+          <div className="flex flex-col space-y-2.5 mb-7">
             {(Object.keys(modeInfo) as Mode[]).map((m) => {
               const mi = modeInfo[m];
               const isSelected = mode === m;
@@ -161,19 +167,23 @@ export default function OralPage() {
                 <button
                   key={m}
                   onClick={() => setMode(m)}
-                  className={`p-5 border-2 rounded-xl text-left transition-all ${
+                  className={`p-4 border-2 rounded-xl text-left transition-all ${
                     isSelected
-                      ? `${mi.selectedStyle} text-white border-transparent`
+                      ? `${mi.bgActive} border-transparent`
                       : "border-slate-200 hover:border-slate-300 bg-white"
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`font-extrabold text-base ${isSelected ? "text-white" : "text-slate-800"}`}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className={`font-semibold text-sm ${isSelected ? "text-white" : "text-slate-800"}`}>
                       {mi.label}
                     </span>
-                    {isSelected && <span className="text-white text-sm">✓</span>}
+                    {isSelected && (
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8L6.5 11.5L13 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
                   </div>
-                  <p className={`text-sm leading-relaxed ${isSelected ? "text-white opacity-90" : "text-slate-500"}`}>
+                  <p className={`text-xs leading-relaxed ${isSelected ? "text-white/85" : "text-slate-500"}`}>
                     {mi.description}
                   </p>
                 </button>
@@ -182,10 +192,10 @@ export default function OralPage() {
           </div>
 
           {/* Question Count Slider */}
-          <div className="mb-8">
+          <div className="mb-7">
             <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-bold text-slate-700">Number of Questions</label>
-              <span className="text-sm font-bold text-blue-600">{questionCount}</span>
+              <label className="text-sm font-medium text-slate-700">Number of Questions</label>
+              <span className="text-sm font-semibold text-indigo-600">{questionCount}</span>
             </div>
             <input
               type="range"
@@ -194,7 +204,7 @@ export default function OralPage() {
               step={1}
               value={questionCount}
               onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="w-full accent-blue-600"
+              className="w-full accent-indigo-600"
             />
             <div className="flex justify-between text-xs text-slate-400 mt-1">
               <span>5</span>
@@ -204,7 +214,7 @@ export default function OralPage() {
 
           <button
             onClick={startSession}
-            className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-md"
+            className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition text-sm"
           >
             Begin Oral Examination
           </button>
@@ -214,23 +224,23 @@ export default function OralPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-slate-50">
 
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0">
+      <div className="bg-white border-b border-slate-200 px-6 py-3.5 shrink-0">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-lg font-extrabold text-slate-900">Mock Oral AI DPE</h1>
+              <h1 className="text-sm font-semibold text-slate-900">Mock Oral AI DPE</h1>
               <p className="text-xs text-slate-400">Cessna 172 · Private Pilot ACS · {questionCount} questions</p>
             </div>
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${modeInfo[mode].badge}`}>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${modeInfo[mode].badgeStyle}`}>
               {modeInfo[mode].label}
             </span>
           </div>
           <button
             onClick={resetSession}
-            className="text-sm font-bold text-slate-500 hover:text-slate-800 transition px-4 py-2 rounded-lg hover:bg-slate-100"
+            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition px-3 py-1.5 rounded-lg hover:bg-slate-100"
           >
             End Session
           </button>
@@ -238,24 +248,22 @@ export default function OralPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-8 px-4">
-        <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto py-7 px-4">
+        <div className="max-w-3xl mx-auto space-y-5">
           {messages
             .filter((msg) => msg.content !== "Begin the oral examination.")
             .map((msg, i) => (
-              <div key={i} className="flex flex-col items-center">
-                <div className={`w-full ${msg.role === "user" ? "flex justify-end" : "flex justify-start"}`}>
-                  <div className={`max-w-2xl w-full`}>
-                    <p className={`text-xs font-bold mb-1 ${msg.role === "user" ? "text-right text-slate-400" : "text-left text-blue-600"}`}>
-                      {msg.role === "user" ? "You" : "Examiner"}
-                    </p>
-                    <div className={`px-5 py-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                      msg.role === "user"
-                        ? "bg-blue-600 text-white rounded-tr-sm ml-auto"
-                        : "bg-white text-slate-800 border border-slate-200 rounded-tl-sm shadow-sm"
-                    }`}>
-                      {msg.content}
-                    </div>
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className="max-w-2xl w-full">
+                  <p className={`text-xs font-medium mb-1.5 ${msg.role === "user" ? "text-right text-slate-400" : "text-left text-indigo-600"}`}>
+                    {msg.role === "user" ? "You" : "Examiner"}
+                  </p>
+                  <div className={`px-4 py-3.5 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-indigo-600 text-white ml-auto rounded-tr-sm"
+                      : "bg-white text-slate-800 border border-slate-200 rounded-tl-sm"
+                  }`}>
+                    {msg.content}
                   </div>
                 </div>
               </div>
@@ -264,12 +272,12 @@ export default function OralPage() {
           {isLoading && (
             <div className="flex justify-start">
               <div className="max-w-2xl w-full">
-                <p className="text-xs font-bold mb-1 text-blue-600">Examiner</p>
-                <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-sm inline-block">
+                <p className="text-xs font-medium mb-1.5 text-indigo-600">Examiner</p>
+                <div className="bg-white border border-slate-200 rounded-xl rounded-tl-sm px-4 py-3.5 inline-block">
                   <div className="flex gap-1 items-center h-4">
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
                 </div>
               </div>
@@ -280,14 +288,14 @@ export default function OralPage() {
       </div>
 
       {/* Input */}
-      <div className="bg-white border-t border-slate-200 px-4 py-4 shrink-0">
+      <div className="bg-white border-t border-slate-200 px-4 py-3.5 shrink-0">
         <div className="max-w-3xl mx-auto">
-          <div className="flex gap-3 items-end">
+          <div className="flex gap-2.5 items-end">
             {mode !== "checkride" && (
               <button
                 onClick={requestHint}
                 disabled={isLoading}
-                className="bg-slate-100 text-slate-600 font-bold px-4 py-3 rounded-xl hover:bg-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm border-2 border-slate-200"
+                className="bg-slate-100 text-slate-600 font-medium px-4 py-2.5 rounded-xl hover:bg-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm border border-slate-200"
               >
                 Hint
               </button>
@@ -298,18 +306,18 @@ export default function OralPage() {
               onKeyDown={handleKeyDown}
               placeholder="Type your answer... (Enter to send, Shift+Enter for new line)"
               rows={2}
-              className="flex-1 resize-none border-2 border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-blue-400 transition"
+              className="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 transition"
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || isLoading}
-              className="bg-blue-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shrink-0"
+              className="bg-indigo-600 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm"
             >
               Send
             </button>
           </div>
-          <p className="text-xs text-slate-400 text-center mt-3">
-            This is a practice tool. Always verify answers with official FAA publications.
+          <p className="text-xs text-slate-400 text-center mt-2.5">
+            Practice tool only. Always verify with official FAA publications.
           </p>
         </div>
       </div>
