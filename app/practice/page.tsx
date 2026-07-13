@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "../../utils/supabase";
+import { useAuth } from "../components/AuthProvider";
 
 type Question = {
   id: string;
@@ -15,34 +18,52 @@ type Question = {
   image_url: string | null;
 };
 
-function loadSession() {
-  try {
-    const raw = sessionStorage.getItem("practice_session");
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-export default function PracticeQuiz() {
-  const saved = typeof window !== "undefined" ? loadSession() : null;
-
-  const [screen, setScreen] = useState<"select" | "quiz" | "results">(saved?.screen ?? "select");
+function PracticeQuizContent() {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const practiceSessionKey = `practice_session:${user.id}`;
+  const sessionRestoredRef = useRef(false);
+  const handledParamsRef = useRef("");
+  const [screen, setScreen] = useState<"select" | "quiz" | "results">("select");
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(saved?.selectedCategories ?? []);
-  const [questions, setQuestions] = useState<Question[]>(saved?.questions ?? []);
-  const [currentIndex, setCurrentIndex] = useState(saved?.currentIndex ?? 0);
-  const [answers, setAnswers] = useState<Record<number, string>>(saved?.answers ?? {});
-  const [score, setScore] = useState(saved?.score ?? 0);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<number, string>>({});
+  const [score, setScore] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [questionCount, setQuestionCount] = useState(saved?.questionCount ?? 20);
-  const [optionOrders, setOptionOrders] = useState<Record<number, ("option_a" | "option_b" | "option_c")[]>>(saved?.optionOrders ?? {});
+  const [questionCount, setQuestionCount] = useState(20);
+  const [optionOrders, setOptionOrders] = useState<Record<number, ("option_a" | "option_b" | "option_c")[]>>({});
+
+  // Restore session from sessionStorage after mount (client-only)
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const raw = sessionStorage.getItem(practiceSessionKey);
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s.screen) setScreen(s.screen);
+          if (s.selectedCategories) setSelectedCategories(s.selectedCategories);
+          if (s.questions) setQuestions(s.questions);
+          if (s.currentIndex !== undefined) setCurrentIndex(s.currentIndex);
+          if (s.answers) setAnswers(s.answers);
+          if (s.score !== undefined) setScore(s.score);
+          if (s.questionCount) setQuestionCount(s.questionCount);
+          if (s.optionOrders) setOptionOrders(s.optionOrders);
+        }
+      } catch { /* ignore */ }
+      sessionRestoredRef.current = true;
+    });
+  }, [practiceSessionKey]);
 
   // Persist session state to sessionStorage whenever it changes
   useEffect(() => {
-    sessionStorage.setItem("practice_session", JSON.stringify({
+    if (!sessionRestoredRef.current) return;
+    sessionStorage.setItem(practiceSessionKey, JSON.stringify({
       screen, selectedCategories, questions, currentIndex, answers, score, questionCount, optionOrders,
     }));
-  }, [screen, selectedCategories, questions, currentIndex, answers, score, questionCount, optionOrders]);
+  }, [practiceSessionKey, screen, selectedCategories, questions, currentIndex, answers, score, questionCount, optionOrders]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -61,29 +82,48 @@ export default function PracticeQuiz() {
     );
   };
 
-  const startQuiz = async () => {
+  const startQuiz = useCallback(async (overrideCategories?: string[]) => {
+    const cats = overrideCategories ?? selectedCategories;
     const { data, error } = await supabase
-    .from("questions")
-    .select("*")
-    .in("category", selectedCategories);
-  if (error || !data || data.length === 0) { console.error(error); return; }
-  const shuffled = data.sort(() => Math.random() - 0.5).slice(0, questionCount);
-  setQuestions(shuffled);
+      .from("questions")
+      .select("*")
+      .in("category", cats);
+    if (error || !data || data.length === 0) { console.error(error); return; }
+    const shuffled = data.sort(() => Math.random() - 0.5).slice(0, questionCount);
+    setQuestions(shuffled);
 
-  // Builds a shuffled option order for each question
-  const orders: Record<number, ("option_a" | "option_b" | "option_c")[]> = {};
-  shuffled.forEach((_, i) => {
-    orders[i] = (["option_a", "option_b", "option_c"] as const)
-      .slice()
-      .sort(() => Math.random() - 0.5);
-  });
-  setOptionOrders(orders);
+    // Builds a shuffled option order for each question
+    const orders: Record<number, ("option_a" | "option_b" | "option_c")[]> = {};
+    shuffled.forEach((_, i) => {
+      orders[i] = (["option_a", "option_b", "option_c"] as const)
+        .slice()
+        .sort(() => Math.random() - 0.5);
+    });
+    setOptionOrders(orders);
+    setCurrentIndex(0);
+    setAnswers({});
+    setScore(0);
+    setScreen("quiz");
+  }, [selectedCategories, questionCount]);
 
-  setCurrentIndex(0);
-  setAnswers({});
-  setScore(0);
-  setScreen("quiz");
-};
+  // Handle URL params: ?categories=X,Y&autostart=true
+  useEffect(() => {
+    const cats = searchParams.get("categories");
+    const autostart = searchParams.get("autostart");
+    const paramsKey = searchParams.toString();
+    if (cats && handledParamsRef.current !== paramsKey) {
+      handledParamsRef.current = paramsKey;
+      const parsed = cats.split(",").map((c) => c.trim()).filter(Boolean);
+      queueMicrotask(() => {
+        if (autostart === "true") {
+          sessionStorage.removeItem(practiceSessionKey);
+          setScreen("select");
+        }
+        setSelectedCategories(parsed);
+        if (autostart === "true") void startQuiz(parsed);
+      });
+    }
+  }, [practiceSessionKey, searchParams, startQuiz]);
 
   const handleAnswer = (answer: string) => {
     if (answers[currentIndex] !== undefined) return;
@@ -105,7 +145,8 @@ export default function PracticeQuiz() {
       .insert([{
         score: finalScore,
         total_questions: questions.length,
-       category: selectedCategories.join(", ")
+        category: selectedCategories.join(", "),
+        user_id: user.id,
     }]);
     if (scoreError) console.error(scoreError);
 
@@ -114,6 +155,7 @@ export default function PracticeQuiz() {
       category: q.category,
       correct: answers[i] === q.correct_answer,
       session_id: sessionId,
+      user_id: user.id,
     }));
 
     const { error: resultsError } = await supabase
@@ -136,10 +178,13 @@ export default function PracticeQuiz() {
     const estimatedMinutes = Math.round(questionCount * 0.75);
 
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10">
-        <div className="bg-white p-10 rounded-2xl shadow-lg w-full max-w-lg border border-slate-100">
-          <h1 className="text-3xl font-extrabold text-slate-900 mb-1">Practice Questions</h1>
-          <p className="text-slate-500 mb-8">Pick which categories you want to practice.</p>
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="mb-7">
+          <h1 className="text-2xl font-bold text-slate-900">Practice Questions</h1>
+          <p className="text-slate-500 mt-0.5 text-sm">Pick which categories you want to practice.</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl w-full max-w-2xl border border-slate-200">
 
           {loading ? (
             <p className="text-slate-400">Loading categories...</p>
@@ -147,7 +192,7 @@ export default function PracticeQuiz() {
             <>
               {/* Select All */}
               <label className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${
-                allSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-blue-300"
+                allSelected ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-300"
               }`}>
                 <input
                   type="checkbox"
@@ -157,7 +202,7 @@ export default function PracticeQuiz() {
                       ? setSelectedCategories([])
                       : setSelectedCategories([...categories])
                   }
-                  className="w-5 h-5 accent-blue-600"
+                  className="w-5 h-5 accent-indigo-600"
                 />
                 <span className="font-bold text-slate-700">Select All Categories</span>
               </label>
@@ -168,15 +213,15 @@ export default function PracticeQuiz() {
                     key={cat}
                     className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
                       selectedCategories.includes(cat)
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-200 hover:border-blue-300"
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-slate-200 hover:border-indigo-300"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={selectedCategories.includes(cat)}
                       onChange={() => toggleCategory(cat)}
-                      className="w-5 h-5 accent-blue-600"
+                      className="w-5 h-5 accent-indigo-600"
                     />
                     <span className="font-semibold text-slate-700">{cat}</span>
                   </label>
@@ -189,7 +234,7 @@ export default function PracticeQuiz() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-bold text-slate-700">Number of Questions</label>
-              <span className="text-sm font-bold text-blue-600">
+              <span className="text-sm font-semibold text-indigo-600">
                 {questionCount} questions (~{estimatedMinutes} min)
               </span>
             </div>
@@ -200,7 +245,7 @@ export default function PracticeQuiz() {
               step={1}
               value={questionCount}
               onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="w-full accent-blue-600"
+              className="w-full accent-indigo-600"
             />
             <div className="flex justify-between text-xs text-slate-400 mt-1">
               <span>5</span>
@@ -209,9 +254,9 @@ export default function PracticeQuiz() {
           </div>
 
           <button
-            onClick={startQuiz}
+            onClick={() => startQuiz()}
             disabled={selectedCategories.length === 0}
-            className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
+            className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Start Practice Set
           </button>
@@ -223,11 +268,15 @@ export default function PracticeQuiz() {
   // Results Screen
   if (screen === "results") {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-10">
-        <div className="bg-white p-10 rounded-2xl shadow-xl text-center border-t-8 border-blue-600 w-full max-w-md">
-          <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Practice Complete!</h2>
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="mb-7">
+          <h1 className="text-2xl font-bold text-slate-900">Practice Complete</h1>
+          <p className="text-slate-500 mt-0.5 text-sm">Review your score and choose what to do next.</p>
+        </div>
+
+        <div className="bg-white p-8 rounded-xl text-center border border-slate-200 w-full max-w-md">
           <div className="my-8">
-            <span className="text-6xl font-black text-blue-600">{score}</span>
+            <span className="text-6xl font-black text-indigo-600">{score}</span>
             <span className="text-2xl text-slate-400 font-bold"> / {questions.length}</span>
           </div>
           {isSaving ? (
@@ -236,8 +285,8 @@ export default function PracticeQuiz() {
             <p className="text-sm font-bold text-green-500 mb-6">Score saved!</p>
           )}
           <button
-            onClick={() => { sessionStorage.removeItem("practice_session"); setScreen("select"); setQuestions([]); setAnswers({}); setCurrentIndex(0); setScore(0); }}
-            className="w-full bg-slate-900 text-white px-6 py-4 rounded-xl hover:bg-slate-800 font-bold shadow-md transition-all"
+            onClick={() => { sessionStorage.removeItem(practiceSessionKey); setScreen("select"); setQuestions([]); setAnswers({}); setCurrentIndex(0); setScore(0); }}
+            className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 font-semibold transition"
           >
             Practice Again
           </button>
@@ -248,7 +297,7 @@ export default function PracticeQuiz() {
 
   // Quiz Screen
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
 
       {/* Question Sidebar */}
       <div className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
@@ -291,8 +340,8 @@ export default function PracticeQuiz() {
 
           <div className="flex justify-between items-end mb-8">
             <div>
-              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Practice Questions</h1>
-              <p className="text-slate-500 mt-1">{selectedCategories.join(", ")}</p>
+              <h1 className="text-2xl font-bold text-slate-900">Practice Questions</h1>
+              <p className="text-slate-500 mt-0.5 text-sm">{selectedCategories.join(", ")}</p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -301,7 +350,7 @@ export default function PracticeQuiz() {
               >
                 Save & Quit
               </button>
-              <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+              <div className="bg-white px-4 py-2 rounded-lg border border-slate-200">
                 <span className="text-slate-600 font-bold text-sm">
                   Question {currentIndex + 1} of {questions.length}
                 </span>
@@ -309,18 +358,21 @@ export default function PracticeQuiz() {
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-2xl shadow-lg w-full border border-slate-100 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
+          <div className="bg-white p-8 rounded-xl w-full border border-slate-200 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
 
-            <span className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider rounded-full">
+            <span className="ml-4 px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider rounded-full">
               {question.category}
             </span>
             
             {question.image_url && (
                 <div className="ml-4 mt-4 mb-6">
-                  <img
+                  <Image
                     src={question.image_url}
                     alt="Question reference image"
+                    width={900}
+                    height={500}
+                    unoptimized
                     className="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain"
                   />
                 </div>
@@ -335,7 +387,7 @@ export default function PracticeQuiz() {
                 const label = ["A", "B", "C"][i];
                 const isSelected = selectedAnswer === opt;
                 const isRight = opt === question.correct_answer;
-                let style = "border-slate-200 hover:border-blue-300 text-slate-700 hover:bg-slate-50";
+                let style = "border-slate-200 hover:border-indigo-300 text-slate-700 hover:bg-slate-50";
                 if (selectedAnswer !== undefined) {
                   if (isRight) style = "border-green-500 bg-green-50 text-green-900";
                   else if (isSelected) style = "border-rose-500 bg-rose-50 text-rose-900";
@@ -374,7 +426,7 @@ export default function PracticeQuiz() {
             <button
               onClick={() => setCurrentIndex((i) => i - 1)}
               disabled={currentIndex === 0}
-              className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:border-blue-300 transition disabled:opacity-30 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:border-indigo-300 transition disabled:opacity-30 disabled:cursor-not-allowed"
             >
               ← Previous
             </button>
@@ -383,7 +435,7 @@ export default function PracticeQuiz() {
               {allAnswered && (
                 <button
                   onClick={handleFinish}
-                  className="px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition shadow-md"
+                  className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition"
                 >
                   Finish & Save Score ✓
                 </button>
@@ -391,7 +443,7 @@ export default function PracticeQuiz() {
               <button
                 onClick={() => setCurrentIndex((i) => i + 1)}
                 disabled={isLast}
-                className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition disabled:opacity-30 disabled:cursor-not-allowed shadow-md"
+                className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Next Question ➔
               </button>
@@ -401,5 +453,13 @@ export default function PracticeQuiz() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PracticeQuiz() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-slate-400">Loading practice setup...</div>}>
+      <PracticeQuizContent />
+    </Suspense>
   );
 }

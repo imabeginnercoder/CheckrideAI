@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { buildCategoryStats, buildScoreSeries, buildSpacedRepetitionQueue } from "../utils/analytics";
 import { supabase } from "../utils/supabase";
+import { useAuth } from "./components/AuthProvider";
 
 type ScoreRow = {
   id: number;
@@ -16,6 +18,26 @@ type CategoryStat = {
   correct: number;
   total: number;
   percentage: number;
+};
+
+type ScorePoint = {
+  id: number;
+  label: string;
+  category: string;
+  percentage: number;
+};
+
+type RepetitionItem = CategoryStat & {
+  priority: number;
+  reason: string;
+};
+
+type OralSessionRow = {
+  id: number;
+  created_at: string;
+  mode: string;
+  question_count: number;
+  summary: string;
 };
 
 function AnimatedDial({ percentage, label, color, count }: {
@@ -103,6 +125,159 @@ function CategoryBar({ stat }: { stat: CategoryStat }) {
   );
 }
 
+function ScoreOverTimeChart({ points }: { points: ScorePoint[] }) {
+  if (points.length < 2) {
+    return (
+      <div className="bg-white rounded-xl border border-slate-200 p-6">
+        <h2 className="text-base font-semibold text-slate-900">Score Over Time</h2>
+        <p className="text-slate-400 text-xs mt-0.5">Complete two sessions to see your score trend.</p>
+        <div className="mt-8 h-40 rounded-lg bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center text-sm text-slate-400">
+          Not enough score history yet
+        </div>
+      </div>
+    );
+  }
+
+  const width = 560;
+  const height = 180;
+  const pad = 28;
+  const xFor = (i: number) => pad + (i / Math.max(points.length - 1, 1)) * (width - pad * 2);
+  const yFor = (pct: number) => pad + ((100 - pct) / 100) * (height - pad * 2);
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${xFor(i)} ${yFor(p.percentage)}`).join(" ");
+  const latest = points[points.length - 1];
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Score Over Time</h2>
+          <p className="text-slate-400 text-xs mt-0.5">{points.length} saved sessions</p>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold text-indigo-600">{latest.percentage}%</p>
+          <p className="text-xs text-slate-400">latest</p>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-48">
+        {[0, 25, 50, 75, 100].map((tick) => (
+          <g key={tick}>
+            <line x1={pad} x2={width - pad} y1={yFor(tick)} y2={yFor(tick)} stroke="#f1f5f9" strokeWidth="1" />
+            <text x="0" y={yFor(tick) + 4} fontSize="10" fill="#94a3b8">{tick}</text>
+          </g>
+        ))}
+        <line x1={pad} x2={width - pad} y1={yFor(70)} y2={yFor(70)} stroke="#c7d2fe" strokeDasharray="4 4" />
+        <path d={path} fill="none" stroke="#4f46e5" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <circle key={p.id} cx={xFor(i)} cy={yFor(p.percentage)} r="4" fill="#4f46e5" stroke="white" strokeWidth="2" />
+        ))}
+      </svg>
+      <div className="flex justify-between text-xs text-slate-400">
+        <span>{points[0].label}</span>
+        <span>70% target</span>
+        <span>{latest.label}</span>
+      </div>
+    </div>
+  );
+}
+
+function CategoryMasteryTrend({ stats }: { stats: CategoryStat[] }) {
+  const displayStats = stats.slice().sort((a, b) => b.percentage - a.percentage).slice(0, 6);
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-6">
+      <h2 className="text-base font-semibold text-slate-900">Category Mastery Trend</h2>
+      <p className="text-slate-400 text-xs mt-0.5">Current mastery based on question history</p>
+      {displayStats.length === 0 ? (
+        <div className="mt-8 h-40 rounded-lg bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center text-sm text-slate-400">
+          Complete questions to build mastery data
+        </div>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {displayStats.map((stat) => (
+            <div key={stat.category}>
+              <div className="flex items-center justify-between gap-3 mb-1.5">
+                <span className="text-sm font-medium text-slate-700 truncate">{stat.category}</span>
+                <span className="text-xs font-semibold text-slate-500">{Math.round(stat.percentage)}%</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div
+                  className="h-2 rounded-full bg-indigo-500"
+                  style={{ width: `${Math.min(100, stat.percentage)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SpacedRepetitionQueue({ queue }: { queue: RepetitionItem[] }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+      <div className="px-6 py-5 border-b border-slate-100">
+        <h2 className="text-base font-semibold text-slate-900">Suggested Spaced Repetition Queue</h2>
+        <p className="text-slate-400 text-xs mt-0.5">Prioritized categories based on score and practice volume</p>
+      </div>
+      {queue.length === 0 ? (
+        <div className="p-10 text-center text-slate-400 text-sm">Complete a practice session to generate suggestions.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-6">
+          {queue.map((item) => (
+            <a
+              key={item.category}
+              href={`/practice?categories=${encodeURIComponent(item.category)}&autostart=true`}
+              className="rounded-xl border border-slate-200 p-4 transition hover:border-indigo-300 hover:bg-indigo-50"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-800">{item.category}</p>
+                <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md">
+                  {Math.round(item.percentage)}%
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-2">{item.reason}</p>
+              <p className="text-xs font-semibold text-indigo-600 mt-3">Start focused set</p>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OralSessionHistory({ sessions, formatDate }: {
+  sessions: OralSessionRow[];
+  formatDate: (iso: string) => string;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+      <div className="px-6 py-5 border-b border-slate-100">
+        <h2 className="text-base font-semibold text-slate-900">Recent AI Oral Sessions</h2>
+        <p className="text-slate-400 text-xs mt-0.5">Saved final summaries from completed mock oral exams</p>
+      </div>
+      {sessions.length === 0 ? (
+        <div className="p-10 text-center text-slate-400 text-sm">Complete a mock oral session to save a review summary.</div>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {sessions.map((session) => (
+            <div key={session.id} className="px-6 py-4">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 capitalize">{session.mode} mode</p>
+                  <p className="text-xs text-slate-400">{formatDate(session.created_at)} · {session.question_count} questions</p>
+                </div>
+                <span className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md">AI review</span>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-500 line-clamp-3">{session.summary}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type InProgressSession = {
   currentIndex: number;
   questions: { category: string }[];
@@ -112,61 +287,60 @@ type InProgressSession = {
 } | null;
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const practiceSessionKey = `practice_session:${user.id}`;
   const [scores, setScores] = useState<ScoreRow[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [totalSessions, setTotalSessions] = useState(0);
   const [recentTrend, setRecentTrend] = useState<{ recent: number; previous: number } | null>(null);
+  const [oralSessions, setOralSessions] = useState<OralSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [inProgress, setInProgress] = useState<InProgressSession>(null);
 
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem("practice_session");
-      if (raw) {
-        const s = JSON.parse(raw);
-        if (s.screen === "quiz" && s.questions?.length > 0) {
-          setInProgress(s);
+    queueMicrotask(() => {
+      try {
+        const raw = sessionStorage.getItem(practiceSessionKey);
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s.screen === "quiz" && s.questions?.length > 0) {
+            setInProgress(s);
+          }
         }
-      }
-    } catch { /* ignore */ }
-  }, []);
+      } catch { /* ignore */ }
+    });
+  }, [practiceSessionKey]);
 
   useEffect(() => {
     const fetchData = async () => {
       const { data: scoresData, error: scoresError } = await supabase
         .from("quiz_scores")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (scoresError) console.error(scoresError);
 
       const { data: resultsData, error: resultsError } = await supabase
         .from("question_results")
-        .select("*");
+        .select("*")
+        .eq("user_id", user.id);
       if (resultsError) console.error(resultsError);
 
+      const { data: oralData, error: oralError } = await supabase
+        .from("oral_sessions")
+        .select("id, created_at, mode, question_count, summary")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (oralError) console.error(oralError);
+
       if (scoresData) setScores(scoresData);
+      if (oralData) setOralSessions(oralData);
 
       if (resultsData) {
         setTotalAnswered(resultsData.length);
-
-        const categoryMap: Record<string, { correct: number; total: number }> = {};
-        resultsData.forEach((r) => {
-          if (!categoryMap[r.category]) categoryMap[r.category] = { correct: 0, total: 0 };
-          categoryMap[r.category].total += 1;
-          if (r.correct) categoryMap[r.category].correct += 1;
-        });
-
-        const stats: CategoryStat[] = Object.entries(categoryMap)
-          .map(([category, data]) => ({
-            category,
-            correct: data.correct,
-            total: data.total,
-            percentage: (data.correct / data.total) * 100,
-          }))
-          .sort((a, b) => a.percentage - b.percentage);
-
-        setCategoryStats(stats);
+        setCategoryStats(buildCategoryStats(resultsData));
       }
 
       if (scoresData) {
@@ -189,7 +363,7 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [user.id]);
 
   const practiceScores = scores.filter(s => s.category !== "Practice Exam" && s.category !== "Test Run");
   const examScores = scores.filter(s => s.category === "Practice Exam");
@@ -213,6 +387,8 @@ export default function Dashboard() {
   };
 
   const displayScores = scores.filter(s => s.category !== "Test Run");
+  const scoreSeries = buildScoreSeries(displayScores);
+  const repetitionQueue = buildSpacedRepetitionQueue(categoryStats);
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -236,7 +412,7 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { sessionStorage.removeItem("practice_session"); setInProgress(null); }}
+              onClick={() => { sessionStorage.removeItem(practiceSessionKey); setInProgress(null); }}
               className="text-xs font-medium text-indigo-400 hover:text-indigo-700 transition px-3 py-1.5 rounded-lg hover:bg-indigo-100"
             >
               Discard
@@ -291,6 +467,15 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+        <ScoreOverTimeChart points={scoreSeries} />
+        <CategoryMasteryTrend stats={categoryStats} />
+      </div>
+
+      <SpacedRepetitionQueue queue={repetitionQueue} />
+
+      <OralSessionHistory sessions={oralSessions} formatDate={formatDate} />
+
       {/* Performance by Category */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
         <div className="px-6 py-5 border-b border-slate-100">
@@ -321,20 +506,38 @@ export default function Dashboard() {
           <div className="p-6 space-y-5">
             {weakCategories.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider mb-3">Needs Attention</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-rose-600 uppercase tracking-wider">Needs Attention</p>
+                  {weakCategories.length >= 2 && (
+                    <a
+                      href={`/practice?categories=${encodeURIComponent(weakCategories.slice(0, 3).map(c => c.category).join(","))}&autostart=true`}
+                      className="text-xs font-semibold bg-rose-600 text-white px-3 py-1.5 rounded-lg hover:bg-rose-700 transition"
+                    >
+                      Focus on Weak Areas →
+                    </a>
+                  )}
+                </div>
                 <div className="space-y-2.5">
                   {weakCategories.map((cat) => (
-                    <div key={cat.category} className="flex items-start gap-3">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-2 shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{cat.category}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {Math.round(cat.percentage)}% correct across {cat.total} questions.
-                          {cat.percentage < 50
-                            ? " Significant weak area — prioritize before your checkride."
-                            : " A bit more review here will make a difference."}
-                        </p>
+                    <div key={cat.category} className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-2 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-slate-800">{cat.category}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {Math.round(cat.percentage)}% correct across {cat.total} questions.
+                            {cat.percentage < 50
+                              ? " Significant weak area — prioritize before your checkride."
+                              : " A bit more review here will make a difference."}
+                          </p>
+                        </div>
                       </div>
+                      <a
+                        href={`/practice?categories=${encodeURIComponent(cat.category)}`}
+                        className="text-xs font-medium text-rose-600 hover:text-rose-800 border border-rose-200 hover:border-rose-400 px-2.5 py-1 rounded-lg transition shrink-0"
+                      >
+                        Practice →
+                      </a>
                     </div>
                   ))}
                 </div>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../../utils/supabase";
+import { useAuth } from "../components/AuthProvider";
 
 type ChecklistItem = {
   id: string;
@@ -70,101 +72,125 @@ const sections: ChecklistSection[] = [
 ];
 
 const colorMap: Record<string, { border: string; bg: string; text: string; check: string }> = {
-  blue:    { border: "border-blue-500",    bg: "bg-blue-50",    text: "text-blue-800",    check: "accent-blue-600"    },
-  emerald: { border: "border-emerald-500", bg: "bg-emerald-50", text: "text-emerald-800", check: "accent-emerald-600" },
-  violet:  { border: "border-violet-500",  bg: "bg-violet-50",  text: "text-violet-800",  check: "accent-violet-600"  },
-  amber:   { border: "border-amber-500",   bg: "bg-amber-50",   text: "text-amber-800",   check: "accent-amber-600"   },
+  blue:    { border: "border-blue-500",    bg: "bg-blue-50",    text: "text-blue-700",    check: "accent-blue-600"    },
+  emerald: { border: "border-emerald-500", bg: "bg-emerald-50", text: "text-emerald-700", check: "accent-emerald-600" },
+  violet:  { border: "border-violet-500",  bg: "bg-violet-50",  text: "text-violet-700",  check: "accent-violet-600"  },
+  amber:   { border: "border-amber-500",   bg: "bg-amber-50",   text: "text-amber-700",   check: "accent-amber-600"   },
 };
 
 export default function CheckridePage() {
+  const { user } = useAuth();
   const allIds = sections.flatMap((s) => s.items.map((i) => i.id));
-  const [checked, setChecked] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-        const saved = localStorage.getItem("checklist");
-        return saved ? new Set(JSON.parse(saved)) : new Set();
-    }   catch {
-        return new Set();
-    }
-});
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [loadingChecklist, setLoadingChecklist] = useState(true);
 
-  const toggle = (id: string) => {
+  // Load checked items from Supabase on mount
+  useEffect(() => {
+    const fetchChecklist = async () => {
+      const { data, error } = await supabase
+        .from("checklist_items")
+        .select("item_id")
+        .eq("user_id", user.id);
+      if (error) { console.error(error); setLoadingChecklist(false); return; }
+      setChecked(new Set(data.map((r: { item_id: string }) => r.item_id)));
+      setLoadingChecklist(false);
+    };
+    fetchChecklist();
+  }, [user.id]);
+
+  const toggle = async (id: string) => {
+    const isChecked = checked.has(id);
+
+    // Optimistic update
     setChecked((prev) => {
-        const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
-        try {
-            localStorage.setItem("checklist", JSON.stringify([...next]));
-        } catch {
-            console.error("Could not save checklist");
-     }
-    return next;
-  });
-};
+      const next = new Set(prev);
+      if (isChecked) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+
+    if (isChecked) {
+      await supabase
+        .from("checklist_items")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("item_id", id);
+    } else {
+      await supabase.from("checklist_items").insert({ item_id: id, user_id: user.id });
+    }
+  };
 
   const totalChecked = checked.size;
   const totalItems = allIds.length;
   const pct = Math.round((totalChecked / totalItems) * 100);
 
   return (
-    <div className="p-10 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900">Checkride Checklist</h1>
-        <p className="text-slate-500 mt-1">Everything you need to bring on checkride day.</p>
+    <div className="p-8 max-w-4xl mx-auto">
+      <div className="mb-7">
+        <h1 className="text-2xl font-bold text-slate-900">Checkride Checklist</h1>
+        <p className="text-slate-500 mt-0.5 text-sm">Everything you need to bring on checkride day.</p>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 mb-8">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-bold text-slate-700">Overall Readiness</span>
-          <span className="text-sm font-bold text-blue-600">{totalChecked} / {totalItems} items</span>
+      <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+        <div className="flex justify-between items-center mb-2.5">
+          <span className="text-sm font-semibold text-slate-700">Overall Readiness</span>
+          <span className="text-sm font-semibold text-indigo-600">{totalChecked} / {totalItems} items</span>
         </div>
-        <div className="w-full bg-slate-100 rounded-full h-3">
+        <div className="w-full bg-slate-100 rounded-full h-2">
           <div
-            className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+            className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="text-xs text-slate-400 mt-2">{pct}% ready</p>
+        <p className="text-xs text-slate-400 mt-1.5">{pct}% ready</p>
       </div>
 
-      <div className="space-y-6">
-        {sections.map((section) => {
-          const c = colorMap[section.color];
-          const sectionChecked = section.items.filter((i) => checked.has(i.id)).length;
-          return (
-            <div key={section.title} className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-              <div className={`px-6 py-4 border-l-4 ${c.border} ${c.bg} flex justify-between items-center`}>
-                <h2 className={`font-extrabold text-lg ${c.text}`}>{section.title}</h2>
-                <span className={`text-sm font-bold ${c.text}`}>
-                  {sectionChecked}/{section.items.length}
-                </span>
+      {loadingChecklist ? (
+        <div className="text-center text-slate-400 py-10 text-sm">Loading checklist...</div>
+      ) : (
+        <div className="space-y-4">
+          {sections.map((section) => {
+            const c = colorMap[section.color];
+            const sectionChecked = section.items.filter((i) => checked.has(i.id)).length;
+            return (
+              <div key={section.title} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className={`px-6 py-3.5 border-l-4 ${c.border} ${c.bg} flex justify-between items-center`}>
+                  <h2 className={`font-semibold text-sm ${c.text}`}>{section.title}</h2>
+                  <span className={`text-xs font-semibold ${c.text}`}>
+                    {sectionChecked}/{section.items.length}
+                  </span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {section.items.map((item) => (
+                    <label
+                      key={item.id}
+                      className="flex items-start gap-4 px-6 py-3.5 cursor-pointer hover:bg-slate-50 transition"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked.has(item.id)}
+                        onChange={() => toggle(item.id)}
+                        className={`mt-0.5 w-4 h-4 shrink-0 ${c.check}`}
+                      />
+                      <div>
+                        <p className={`text-sm font-medium ${checked.has(item.id) ? "line-through text-slate-400" : "text-slate-800"}`}>
+                          {item.label}
+                        </p>
+                        {item.note && (
+                          <p className="text-xs text-slate-400 mt-0.5">{item.note}</p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
-              <div className="divide-y divide-slate-100">
-                {section.items.map((item) => (
-                  <label
-                    key={item.id}
-                    className="flex items-start gap-4 px-6 py-4 cursor-pointer hover:bg-slate-50 transition"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked.has(item.id)}
-                      onChange={() => toggle(item.id)}
-                      className={`mt-1 w-5 h-5 shrink-0 ${c.check}`}
-                    />
-                    <div>
-                      <p className={`text-sm font-semibold ${checked.has(item.id) ? "line-through text-slate-400" : "text-slate-800"}`}>
-                        {item.label}
-                      </p>
-                      {item.note && (
-                        <p className="text-xs text-slate-400 mt-0.5">{item.note}</p>
-                      )}
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

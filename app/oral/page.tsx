@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { supabase } from "../../utils/supabase";
+import { useAuth } from "../components/AuthProvider";
 
 type Message = {
   role: "user" | "assistant";
@@ -36,31 +38,56 @@ const modeInfo = {
   },
 };
 
-function loadOralSession() {
-  try {
-    const raw = sessionStorage.getItem("oral_session");
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
 export default function OralPage() {
-  const saved = typeof window !== "undefined" ? loadOralSession() : null;
-
-  const [screen, setScreen] = useState<"select" | "chat">(saved?.screen ?? "select");
-  const [mode, setMode] = useState<Mode>(saved?.mode ?? "intermediate");
-  const [questionCount, setQuestionCount] = useState(saved?.questionCount ?? 10);
-  const [messages, setMessages] = useState<Message[]>(saved?.messages ?? []);
+  const { user } = useAuth();
+  const [screen, setScreen] = useState<"select" | "chat">("select");
+  const [mode, setMode] = useState<Mode>("intermediate");
+  const [questionCount, setQuestionCount] = useState(10);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const sessionRestoredRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Restore session from sessionStorage after mount (client-only)
   useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const raw = sessionStorage.getItem("oral_session");
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s.screen) setScreen(s.screen);
+          if (s.mode) setMode(s.mode);
+          if (s.questionCount) setQuestionCount(s.questionCount);
+          if (s.messages) setMessages(s.messages);
+        }
+      } catch { /* ignore */ }
+      sessionRestoredRef.current = true;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRestoredRef.current) return;
     sessionStorage.setItem("oral_session", JSON.stringify({ screen, mode, questionCount, messages }));
   }, [screen, mode, questionCount, messages]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const saveCompletedSession = async (finalMessages: Message[]) => {
+    const summary = [...finalMessages]
+      .reverse()
+      .find((msg) => msg.role === "assistant")?.content ?? "";
+
+    await supabase.from("oral_sessions").insert({
+      user_id: user.id,
+      mode,
+      question_count: questionCount,
+      transcript: finalMessages,
+      summary,
+    });
+  };
 
   const startSession = async () => {
     setScreen("chat");
@@ -106,10 +133,14 @@ export default function OralPage() {
         body: JSON.stringify({ messages: newMessages, mode, questionCount }),
       });
       const data = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply },
-      ]);
+      const finalMessages = [
+        ...newMessages,
+        { role: "assistant" as const, content: data.reply },
+      ];
+      setMessages(finalMessages);
+      if (data.reply?.includes("That concludes our session")) {
+        await saveCompletedSession(finalMessages);
+      }
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -168,10 +199,13 @@ export default function OralPage() {
 
   if (screen === "select") {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8">
-        <div className="bg-white p-8 rounded-xl border border-slate-200 w-full max-w-lg">
-          <h1 className="text-xl font-bold text-slate-900 mb-1">Mock Oral AI DPE</h1>
-          <p className="text-slate-500 text-sm mb-7">Select a practice mode and session length to begin.</p>
+      <div className="p-8 max-w-4xl mx-auto">
+        <div className="mb-7">
+          <h1 className="text-2xl font-bold text-slate-900">Mock Oral AI DPE</h1>
+          <p className="text-slate-500 mt-0.5 text-sm">Select a practice mode and session length to begin.</p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 w-full max-w-2xl">
 
           <div className="flex flex-col space-y-2.5 mb-7">
             {(Object.keys(modeInfo) as Mode[]).map((m) => {

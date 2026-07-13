@@ -4,12 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
+import { supabase } from "../../utils/supabase";
+import { useAuth } from "./AuthProvider";
 
 export default function Sidebar() {
   const [checkrideOpen, setCheckrideOpen] = useState(false);
+  const { user } = useAuth();
   const pathname = usePathname();
 
   const isActive = (href: string) => pathname === href;
+  const checkrideActive = isActive("/oral") || isActive("/checklist");
+  const checkrideExpanded = checkrideOpen || checkrideActive;
 
   const linkClass = (href: string) =>
     `px-3 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium flex items-center gap-2.5 ${
@@ -72,7 +77,7 @@ export default function Sidebar() {
         <button
           onClick={() => setCheckrideOpen((prev) => !prev)}
           className={`px-3 py-2.5 rounded-lg hover:bg-white/8 transition-all duration-150 text-sm font-medium flex justify-between items-center w-full ${
-            (isActive("/oral") || isActive("/checklist")) && !checkrideOpen
+            checkrideActive
               ? "text-white bg-white/8"
               : "text-slate-400 hover:text-white"
           }`}
@@ -86,11 +91,11 @@ export default function Sidebar() {
           </span>
           <ChevronDown
             size={14}
-            className={`text-slate-600 transition-transform duration-200 ${checkrideOpen ? "rotate-180" : ""}`}
+            className={`text-slate-600 transition-transform duration-200 ${checkrideExpanded ? "rotate-180" : ""}`}
           />
         </button>
 
-        {checkrideOpen && (
+        {checkrideExpanded && (
           <div className="flex flex-col space-y-0.5 pl-4 ml-2 border-l border-white/8">
             <Link href="/oral" className={linkClass("/oral")}>
               Mock Oral AI DPE
@@ -104,7 +109,14 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-white/5">
-        <p className="text-xs text-slate-600">© 2025 CheckrideAI</p>
+        <p className="truncate text-xs text-slate-500">{user.email}</p>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="mt-2 text-xs font-medium text-slate-600 transition hover:text-white"
+        >
+          Sign out
+        </button>
+        <p className="mt-4 text-xs text-slate-700">© 2025 CheckrideAI</p>
       </div>
     </nav>
   );
