@@ -124,7 +124,7 @@ export default function LandingPage() {
                 ))}
               </div>
               <h1 className="max-w-3xl text-5xl font-bold leading-[1.02] tracking-tight text-slate-950 md:text-6xl">
-                PPL Prep Designed for You.
+                Private Pilot Prep Designed for You.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
                 CheckrideAI helps student pilots practice FAA-style questions, rehearse oral exam scenarios, and track category mastery so every study session has a clear next step.
