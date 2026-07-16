@@ -55,6 +55,7 @@ create table if not exists public.profiles (
 alter table public.profiles add column if not exists display_name text;
 alter table public.profiles add column if not exists checkride_date date;
 alter table public.profiles add column if not exists preferred_aircraft text not null default 'Cessna 172S';
+alter table public.profiles add column if not exists onboarding_completed boolean not null default false;
 alter table public.profiles add column if not exists created_at timestamptz not null default now();
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
 
@@ -118,13 +119,20 @@ create trigger on_auth_user_created_profile
   after insert on auth.users
   for each row execute function public.handle_new_user_profile();
 
-insert into public.profiles (id, display_name, preferred_aircraft)
+insert into public.profiles as existing (id, display_name, checkride_date, preferred_aircraft)
 select
   id,
   nullif(raw_user_meta_data ->> 'display_name', ''),
+  (nullif(raw_user_meta_data ->> 'checkride_date', ''))::date,
   coalesce(nullif(raw_user_meta_data ->> 'preferred_aircraft', ''), 'Cessna 172S')
 from auth.users
-on conflict (id) do nothing;
+on conflict (id) do update set
+  display_name = coalesce(nullif(existing.display_name, ''), excluded.display_name),
+  checkride_date = coalesce(existing.checkride_date, excluded.checkride_date),
+  preferred_aircraft = case
+    when existing.display_name is null and existing.checkride_date is null then excluded.preferred_aircraft
+    else existing.preferred_aircraft
+  end;
 
 create index if not exists quiz_scores_user_id_idx on public.quiz_scores(user_id);
 create index if not exists question_results_user_id_idx on public.question_results(user_id);

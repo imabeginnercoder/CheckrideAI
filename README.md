@@ -73,7 +73,7 @@ A database schema is the blueprint for how the app stores information. Each tabl
 
 | Table | Purpose |
 | --- | --- |
-| `profiles` | Display name, checkride date, and preferred aircraft for each account |
+| `profiles` | Display name, checkride date, preferred aircraft, and tutorial completion for each account |
 | `quiz_scores` | Completed practice or exam scores |
 | `question_results` | Per-question results used to calculate category mastery |
 | `checklist_items` | Completed checkride-planning checklist items |

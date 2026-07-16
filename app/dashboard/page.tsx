@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
 import CheckrideCountdown from "./CheckrideCountdown";
+import OnboardingTour from "./OnboardingTour";
 import { AnimatedDial, CategoryBar, CategoryMasteryTrend, OralSessionHistory, ScoreOverTimeChart, SpacedRepetitionQueue } from "./DashboardWidgets";
 import type { CategoryStat, OralSessionRow, ScoreRow } from "./types";
 
@@ -123,6 +124,7 @@ function DashboardContent() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
+      <OnboardingTour userId={user.id} />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>

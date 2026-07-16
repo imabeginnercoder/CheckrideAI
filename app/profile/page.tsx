@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { aircraftOptions, daysUntilDate, type Profile } from "@/lib/profile";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { aircraftOptions, daysUntilDate, mergeProfileWithUserMetadata, type Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
@@ -29,42 +31,62 @@ function ProfileContent() {
   useEffect(() => {
     const load = async () => {
       const [profileResult, usageResult] = await Promise.all([
-        supabase.from("profiles").select("id, display_name, checkride_date, preferred_aircraft").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("id, display_name, checkride_date, preferred_aircraft, onboarding_completed").eq("id", user.id).maybeSingle(),
         supabase.rpc("get_my_ai_usage_summary"),
       ]);
 
-      if (profileResult.data) setProfile(profileResult.data as Profile);
+      const repairedProfile = mergeProfileWithUserMetadata(profileResult.data as Profile | null, user);
+      setProfile(repairedProfile);
+
+      if (!profileResult.data || JSON.stringify(profileResult.data) !== JSON.stringify(repairedProfile)) {
+        const { error: repairError } = await supabase.from("profiles").upsert({
+          id: repairedProfile.id,
+          display_name: repairedProfile.display_name,
+          checkride_date: repairedProfile.checkride_date,
+          preferred_aircraft: repairedProfile.preferred_aircraft,
+        }, { onConflict: "id" });
+        if (repairError) setStatus(repairError.message);
+      }
+
       if (usageResult.data?.[0]) setUsage(usageResult.data[0] as UsageSummary);
       if (profileResult.error) setStatus(profileResult.error.message);
       setLoading(false);
     };
 
     load();
-  }, [user.id]);
+  }, [user]);
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setStatus("");
 
-    const { error } = await supabase.from("profiles").upsert({
+    const { error: profileError } = await supabase.from("profiles").upsert({
       id: user.id,
       display_name: profile.display_name?.trim() || null,
       checkride_date: profile.checkride_date || null,
       preferred_aircraft: profile.preferred_aircraft,
     });
 
-    if (!error) {
-      await supabase.auth.updateUser({
+    let metadataError = null;
+    if (!profileError) {
+      const result = await supabase.auth.updateUser({
         data: {
           display_name: profile.display_name?.trim() || null,
           checkride_date: profile.checkride_date || null,
           preferred_aircraft: profile.preferred_aircraft,
         },
       });
+      metadataError = result.error;
     }
 
-    setStatus(error ? error.message : "Profile saved. Future oral sessions will use this aircraft.");
+    setStatus(
+      profileError
+        ? profileError.message
+        : metadataError
+          ? `Profile saved, but account metadata could not be updated: ${metadataError.message}`
+          : "Profile saved. Future oral sessions will use this aircraft."
+    );
     setSaving(false);
   };
 
@@ -74,6 +96,10 @@ function ProfileContent() {
   return (
     <div className="mx-auto max-w-4xl p-8">
       <div className="mb-8">
+        <Link href="/dashboard" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-slate-950">
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back to dashboard
+        </Link>
         <h1 className="text-2xl font-bold text-slate-950">Profile and study plan</h1>
         <p className="mt-1 text-sm text-slate-500">Keep your aircraft and checkride timeline current.</p>
       </div>

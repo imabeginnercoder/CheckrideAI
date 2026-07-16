@@ -1,5 +1,6 @@
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+import { syncProfileFromUser } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 
 function safeNextPath(value: string | null) {
@@ -13,8 +14,14 @@ export async function GET(request: NextRequest) {
 
   if (tokenHash && type) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
-    if (!error) return NextResponse.redirect(new URL(next, request.url));
+    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+    if (!error) {
+      if (data.user && type === "email") {
+        const { error: profileError } = await syncProfileFromUser(supabase, data.user);
+        if (profileError) console.error("Unable to sync confirmed user profile", profileError);
+      }
+      return NextResponse.redirect(new URL(next, request.url));
+    }
   }
 
   return NextResponse.redirect(new URL("/login?error=confirmation", request.url));
