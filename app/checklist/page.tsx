@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "../../utils/supabase";
+import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
 
@@ -102,7 +102,7 @@ function CheckridePageContent() {
   const toggle = async (id: string) => {
     const isChecked = checked.has(id);
 
-    // Optimistic update
+
     setChecked((prev) => {
       const next = new Set(prev);
       if (isChecked) {

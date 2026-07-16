@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown } from "lucide-react";
-import { supabase } from "../../utils/supabase";
+import { ChevronDown, UserRound } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "./AuthProvider";
 
 export default function Sidebar() {
@@ -105,6 +105,12 @@ export default function Sidebar() {
             </Link>
           </div>
         )}
+
+        <p className="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wider">Account</p>
+        <Link href="/profile" className={linkClass("/profile")}>
+          <UserRound size={16} className="shrink-0" />
+          Profile & Plan
+        </Link>
       </div>
 
       {/* Footer */}

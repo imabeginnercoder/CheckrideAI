@@ -1,143 +1,139 @@
 # CheckrideAI
 
-CheckrideAI is a full-stack private pilot checkride preparation app. It combines FAA-style practice questions, timed mock exams, checklist tracking, learning analytics, and an AI oral-exam simulator for Private Pilot students.
+[CheckrideAI](https://pplproai.app) is a full-stack private pilot checkride preparation app for student pilots preparing for the oral and written portions of the checkride. It combines focused practice, timed mock exams, progress analytics, and an ACS-based AI oral examiner in one personalized study workspace.
 
-> Deployment link: coming soon after Vercel setup.
+**Live app:** [pplproai.app](https://pplproai.app)
 
-## Features
+## Highlights
 
-- Authenticated user accounts with Supabase Auth
-- Public landing page with dedicated sign-in and account creation flow
-- Per-user practice scores, question results, checklist progress, and oral-session summaries
-- Practice-question sets by category
-- Timed 60-question FAA-style practice exam
-- Dashboard with average scores, score-over-time chart, category mastery, and spaced repetition suggestions
-- AI mock oral exam with beginner, intermediate, and checkride-ready modes
-- Saved AI oral summaries on the dashboard
-- Checkride document and planning checklist
+- Secure email accounts with server-side Supabase sessions and protected application routes
+- Per-user scores, question history, checklist progress, oral sessions, profile settings, and AI usage records
+- Focused question sets and timed 60-question practice exams
+- Score-over-time and category-mastery charts with suggested spaced-repetition review
+- ACS-based AI oral examiner with aircraft-aware questions, structured scoring, readiness feedback, and exact ACS study areas
+- Personalized profile with a preferred aircraft and checkride countdown
+- Email confirmation, password recovery, and reset-password flows
+- Vercel Web Analytics and Speed Insights
+- Automated unit, mobile/desktop browser, build, and lint checks in GitHub Actions
 
 ## Tech Stack
 
-- Next.js 16 App Router
-- React 19
-- TypeScript
+- Next.js 16 App Router, React 19, and TypeScript
 - Tailwind CSS
-- Supabase Auth and PostgreSQL
-- Anthropic API
-- Node built-in test runner
+- Supabase Auth and PostgreSQL with Row Level Security
+- Anthropic API with Zod-validated structured output
+- Playwright and the Node.js test runner
+- GitHub Actions, Vercel Analytics, and Vercel Speed Insights
 
-## Local Setup
+## Run Locally
 
-Install dependencies:
+Requirements: Node.js 22 and a Supabase project.
 
 ```bash
+git clone https://github.com/imabeginnercoder/CheckrideAI.git
+cd CheckrideAI
 npm install
+cp .env.example .env.local
+npm run dev
 ```
 
-Create `.env.local`:
+Open [http://localhost:3000](http://localhost:3000).
+
+Fill in `.env.local` with real credentials:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
 
-Run the development server:
-
-```bash
-npm run dev
-```
-
-Open:
-
-```bash
-http://localhost:3000
-```
+The Supabase URL and public key are safe to use in browser code because database access is still enforced by authentication and Row Level Security. The Anthropic key is secret and is only read by the protected server API route. Never commit `.env.local`.
 
 ## Supabase Setup
 
-1. Create a Supabase project.
-2. Enable Email auth in Supabase Authentication settings.
-3. Create the existing app tables if they are not already present:
-   - `quiz_scores`
-   - `question_results`
-   - `checklist_items`
-   - `questions`
-4. Run the SQL in:
+1. Create a Supabase project and enable Email authentication.
+2. Open the Supabase SQL editor.
+3. Run [`supabase/auth-and-user-data.sql`](supabase/auth-and-user-data.sql). The migration is idempotent, so it can safely be run again when this file changes.
+4. In **Authentication > URL Configuration**, set the Site URL to `https://pplproai.app`.
+5. Add `https://pplproai.app/**` and `http://localhost:3000/**` to the allowed redirect URLs.
+6. Add the three environment variables above to Vercel for Production and Preview, then redeploy.
 
-```bash
-supabase/auth-and-user-data.sql
+For token-hash email links, use these paths in the Supabase email templates:
+
+```text
+Confirmation: /auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/auth/confirmed
+Recovery:     /auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
 ```
 
-That SQL adds `user_id` ownership columns, creates the `oral_sessions` table, enables row-level security, and adds policies so users can only read and write their own saved data.
+Prefix each path with `{{ .SiteURL }}` in the template. The app also includes `/auth/callback` for Supabase's PKCE code-exchange flow.
 
-## Useful Commands
+## Database Schema
 
-Run lint:
+A database schema is the blueprint for how the app stores information. Each table represents one kind of record:
 
-```bash
-npm run lint
-```
+| Table | Purpose |
+| --- | --- |
+| `profiles` | Display name, checkride date, and preferred aircraft for each account |
+| `quiz_scores` | Completed practice or exam scores |
+| `question_results` | Per-question results used to calculate category mastery |
+| `checklist_items` | Completed checkride-planning checklist items |
+| `oral_sessions` | AI oral transcripts and structured ACS assessments |
+| `ai_usage` | Model, token counts, and estimated cost for each AI request |
 
-Run tests:
+Each user-owned row contains a Supabase user ID. A foreign key links it to the account, and `on delete cascade` removes that user's related data if the account is deleted. Row Level Security policies ensure authenticated users can only access rows that belong to them. Indexes make user-history queries faster, while the new-user trigger automatically creates a profile after signup.
 
-```bash
-npm test
-```
+The `assessment` and `transcript` columns use PostgreSQL `jsonb`. This stores structured objects and message arrays without flattening every nested value into a separate column.
 
-Create a production build:
+## Authentication and API Security
 
-```bash
-npm run build
-```
+`proxy.ts` refreshes the Supabase cookie session and redirects signed-out visitors away from protected pages. Server code independently verifies the signed cookie before accepting AI requests; hiding a page in the browser alone would not protect an API.
 
-Start a production server after building:
+The AI route validates request size and shape, applies per-user rate limits, adds the user's preferred aircraft to the examiner context, asks Anthropic for a schema-validated assessment, and records token usage and estimated cost. API keys remain server-only.
 
-```bash
-npm run start
-```
-
-## Deployment Notes
-
-This app is ready for Vercel deployment once the Supabase database migration has been run.
-
-On Vercel, add these environment variables:
+## Testing
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-ANTHROPIC_API_KEY
+npm run lint       # Static code and React/Next.js rule checks
+npm test           # Unit tests for analytics, scoring, cost, and profile helpers
+npm run build      # Production compilation and route generation
+npm run test:e2e   # Playwright workflows in desktop Chrome and Pixel 7 viewports
 ```
 
-After deployment, update the deployment link at the top of this README.
+Public browser tests cover landing-page navigation, password visibility, password recovery, protected-route redirects, and unauthorized API access. To run the authenticated workflow too, set `E2E_EMAIL` and `E2E_PASSWORD` to a dedicated test account.
 
-## Project Architecture
+GitHub Actions runs lint, unit tests, a production build, and Playwright on pushes and pull requests to `main`. Add the Supabase and Anthropic values as GitHub Actions secrets for full integration coverage; safe placeholders are used for build-only checks.
+
+## Project Structure
 
 ```text
 app/
-  api/chat/route.ts           AI oral-exam API route
-  components/AuthProvider.tsx Supabase auth state and user context
-  components/ProtectedAppShell.tsx Authenticated app shell
-  components/Sidebar.tsx      App navigation and sign-out
-  page.tsx                    Public landing page
-  login/page.tsx              Sign-in and account creation page
-  dashboard/page.tsx          Dashboard and learning analytics
-  practice/page.tsx           Category practice flow
-  exam/page.tsx               Timed practice exam
-  oral/page.tsx               AI oral-exam simulator
-  checklist/page.tsx          Checkride checklist
-
-utils/
-  analytics.js                Score, mastery, and recommendation helpers
-  supabase.js                 Supabase browser client
-
+  api/chat/route.ts             Authenticated AI examiner endpoint
+  auth/                         Email confirmation and OAuth/PKCE callbacks
+  components/                   Shared auth shell and navigation
+  dashboard/                    Dashboard page, countdown, and analytics widgets
+  forgot-password/              Password recovery request
+  login/                        Sign-in and personalized signup
+  oral/                         Oral session UI and assessment results
+  profile/                      Pilot preferences, countdown, and AI usage
+  reset-password/               Secure password update flow
+lib/
+  oral-exam.ts                  ACS prompt, schemas, limits, and cost calculation
+  profile.ts                    Profile options and date helpers
+  supabase/                     Browser, server, and proxy Supabase clients
 supabase/
-  auth-and-user-data.sql      Auth/RLS/user-data migration
-
+  auth-and-user-data.sql        Tables, triggers, indexes, functions, and RLS
 tests/
-  analytics.test.mjs          Automated tests for analytics helpers
+  e2e/                          Playwright user workflows
+  *.test.*                      Unit tests
+proxy.ts                        Session refresh and protected-route boundary
 ```
+
+The dashboard was split into focused widgets and shared types so the page coordinates data while smaller components handle presentation. This keeps future features easier to test and change.
+
+## Deployment
+
+Vercel builds the production app from `main`. After changing environment variables, redeploy so the new build receives them. The production deployment is available at [pplproai.app](https://pplproai.app).
 
 ## Resume Summary
 
-Built CheckrideAI, a full-stack AI private pilot preparation platform using Next.js, TypeScript, Supabase, PostgreSQL, and the Anthropic API, with authenticated user progress tracking, practice exams, learning analytics, spaced repetition recommendations, and an AI oral-exam simulator.
+Built and deployed CheckrideAI, a full-stack private pilot checkride preparation platform using Next.js, TypeScript, Supabase, PostgreSQL, and the Anthropic API. Implemented server-validated authentication, per-user data isolation, ACS-based structured AI evaluation, usage and cost telemetry, responsive learning analytics, and automated CI/browser testing.

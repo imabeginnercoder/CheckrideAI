@@ -1,16 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { supabase } from "../../utils/supabase";
+import { supabase } from "@/lib/supabase/client";
+import type { OralAssessment, OralMessage, OralMode, OralResponse } from "@/lib/oral-exam";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
-
-type Message = {
-  role: "user" | "assistant";
-  content: string;
-};
-
-type Mode = "beginner" | "intermediate" | "checkride";
+import AssessmentCard from "./AssessmentCard";
 
 const modeInfo = {
   beginner: {
@@ -41,12 +36,17 @@ const modeInfo = {
 
 function OralPageContent() {
   const { user } = useAuth();
-  const [screen, setScreen] = useState<"select" | "chat">("select");
-  const [mode, setMode] = useState<Mode>("intermediate");
+  const [screen, setScreen] = useState<"select" | "chat" | "results">("select");
+  const [mode, setMode] = useState<OralMode>("intermediate");
   const [questionCount, setQuestionCount] = useState(10);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<OralMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [sessionKey, setSessionKey] = useState("");
+  const [assessment, setAssessment] = useState<OralAssessment | null>(null);
+  const [aircraftModel, setAircraftModel] = useState("your preferred aircraft");
+  const [questionsCompleted, setQuestionsCompleted] = useState(0);
   const sessionRestoredRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +61,10 @@ function OralPageContent() {
           if (s.mode) setMode(s.mode);
           if (s.questionCount) setQuestionCount(s.questionCount);
           if (s.messages) setMessages(s.messages);
+          if (s.sessionKey) setSessionKey(s.sessionKey);
+          if (s.assessment) setAssessment(s.assessment);
+          if (s.aircraftModel) setAircraftModel(s.aircraftModel);
+          if (s.questionsCompleted) setQuestionsCompleted(s.questionsCompleted);
         }
       } catch { /* ignore */ }
       sessionRestoredRef.current = true;
@@ -69,48 +73,82 @@ function OralPageContent() {
 
   useEffect(() => {
     if (!sessionRestoredRef.current) return;
-    sessionStorage.setItem("oral_session", JSON.stringify({ screen, mode, questionCount, messages }));
-  }, [screen, mode, questionCount, messages]);
+    sessionStorage.setItem("oral_session", JSON.stringify({
+      screen,
+      mode,
+      questionCount,
+      messages,
+      sessionKey,
+      assessment,
+      aircraftModel,
+      questionsCompleted,
+    }));
+  }, [screen, mode, questionCount, messages, sessionKey, assessment, aircraftModel, questionsCompleted]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const saveCompletedSession = async (finalMessages: Message[]) => {
-    const summary = [...finalMessages]
-      .reverse()
-      .find((msg) => msg.role === "assistant")?.content ?? "";
-
-    await supabase.from("oral_sessions").insert({
+  const saveCompletedSession = async (
+    finalMessages: OralMessage[],
+    finalAssessment: OralAssessment,
+    completedSessionKey: string,
+    completedAircraft: string
+  ) => {
+    const { error: saveError } = await supabase.from("oral_sessions").upsert({
       user_id: user.id,
+      session_key: completedSessionKey,
       mode,
       question_count: questionCount,
       transcript: finalMessages,
-      summary,
+      summary: finalAssessment.summary,
+      overall_score: finalAssessment.overallScore,
+      readiness: finalAssessment.readiness,
+      assessment: finalAssessment,
+      aircraft_model: completedAircraft,
+      acs_version: "FAA-S-ACS-6C",
+    }, { onConflict: "session_key" });
+
+    if (saveError) throw saveError;
+  };
+
+  const callExaminer = async (requestMessages: OralMessage[], activeSessionKey: string) => {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: requestMessages,
+        mode,
+        questionCount,
+        sessionKey: activeSessionKey,
+      }),
     });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "The AI examiner could not respond.");
+    return data as OralResponse & { aircraftModel: string };
   };
 
   const startSession = async () => {
+    const newSessionKey = crypto.randomUUID();
+    setSessionKey(newSessionKey);
+    setAssessment(null);
+    setQuestionsCompleted(0);
+    setError("");
     setScreen("chat");
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{ role: "user", content: "Begin the oral examination." }],
-          mode,
-          questionCount,
-        }),
-      });
-      const data = await res.json();
+      const openingMessages: OralMessage[] = [{ role: "user", content: "Begin the oral examination." }];
+      const data = await callExaminer(openingMessages, newSessionKey);
+      setAircraftModel(data.aircraftModel);
+      setQuestionsCompleted(data.questionNumber);
       setMessages([
-        { role: "user", content: "Begin the oral examination." },
+        ...openingMessages,
         { role: "assistant", content: data.reply },
       ]);
-    } catch (err) {
-      console.error(err);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The session could not start.");
+      setScreen("select");
     }
 
     setIsLoading(false);
@@ -119,35 +157,31 @@ function OralPageContent() {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    const newMessages: Message[] = [
+    const newMessages: OralMessage[] = [
       ...messages,
       { role: "user", content: input.trim() },
     ];
     setMessages(newMessages);
     setInput("");
+    setError("");
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, mode, questionCount }),
-      });
-      const data = await res.json();
-      const finalMessages = [
+      const data = await callExaminer(newMessages, sessionKey);
+      const finalMessages: OralMessage[] = [
         ...newMessages,
-        { role: "assistant" as const, content: data.reply },
+        { role: "assistant", content: data.reply },
       ];
       setMessages(finalMessages);
-      if (data.reply?.includes("That concludes our session")) {
-        await saveCompletedSession(finalMessages);
+      setQuestionsCompleted(data.questionNumber);
+      setAircraftModel(data.aircraftModel);
+      if (data.completed && data.assessment) {
+        setAssessment(data.assessment);
+        await saveCompletedSession(finalMessages, data.assessment, sessionKey, data.aircraftModel);
+        setScreen("results");
       }
-    } catch (err) {
-      console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Something went wrong. Please try again." },
-      ]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
     }
 
     setIsLoading(false);
@@ -163,7 +197,7 @@ function OralPageContent() {
   const requestHint = async () => {
     if (isLoading) return;
 
-    const hintMessages: Message[] = [
+    const hintMessages: OralMessage[] = [
       ...messages,
       { role: "user", content: "HINT_REQUESTED" },
     ];
@@ -171,21 +205,18 @@ function OralPageContent() {
       ...prev,
       { role: "user", content: "Hint requested" },
     ]);
+    setError("");
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: hintMessages, mode, questionCount }),
-      });
-      const data = await res.json();
+      const data = await callExaminer(hintMessages, sessionKey);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.reply },
       ]);
-    } catch (err) {
-      console.error(err);
+      setQuestionsCompleted(data.questionNumber);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "A hint could not be generated.");
     }
 
     setIsLoading(false);
@@ -195,6 +226,10 @@ function OralPageContent() {
     sessionStorage.removeItem("oral_session");
     setMessages([]);
     setInput("");
+    setError("");
+    setAssessment(null);
+    setSessionKey("");
+    setQuestionsCompleted(0);
     setScreen("select");
   };
 
@@ -209,7 +244,7 @@ function OralPageContent() {
         <div className="bg-white p-6 rounded-xl border border-slate-200 w-full max-w-2xl">
 
           <div className="flex flex-col space-y-2.5 mb-7">
-            {(Object.keys(modeInfo) as Mode[]).map((m) => {
+            {(Object.keys(modeInfo) as OralMode[]).map((m) => {
               const mi = modeInfo[m];
               const isSelected = mode === m;
               return (
@@ -267,7 +302,23 @@ function OralPageContent() {
           >
             Begin Oral Examination
           </button>
+          {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
         </div>
+      </div>
+    );
+  }
+
+  if (screen === "results" && assessment) {
+    return (
+      <div className="mx-auto max-w-5xl p-8">
+        <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{aircraftModel} - FAA-S-ACS-6C</p>
+            <h1 className="mt-2 text-2xl font-bold text-slate-950">Oral practice scorecard</h1>
+          </div>
+          <button onClick={resetSession} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Start another session</button>
+        </div>
+        <AssessmentCard assessment={assessment} />
       </div>
     );
   }
@@ -281,7 +332,7 @@ function OralPageContent() {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-sm font-semibold text-slate-900">Mock Oral AI DPE</h1>
-              <p className="text-xs text-slate-400">Cessna 172 · Private Pilot ACS · {questionCount} questions</p>
+              <p className="text-xs text-slate-400">{aircraftModel} - Private Pilot ACS - {questionsCompleted}/{questionCount} complete</p>
             </div>
             <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${modeInfo[mode].badgeStyle}`}>
               {modeInfo[mode].label}
@@ -333,6 +384,7 @@ function OralPageContent() {
             </div>
           )}
           <div ref={bottomRef} />
+          {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
         </div>
       </div>
 

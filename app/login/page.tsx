@@ -1,51 +1,72 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "../../utils/supabase";
+import { Eye, EyeOff } from "lucide-react";
+import { aircraftOptions } from "@/lib/profile";
+import { supabase } from "@/lib/supabase/client";
 import { useAuthState } from "../components/AuthProvider";
+
+function safeNextPath(value: string | null) {
+  return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
+}
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading } = useAuthState();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
-  const requestedNext = searchParams.get("next");
-  const nextPath = requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
-    ? requestedNext
-    : "/dashboard";
+  const nextPath = safeNextPath(searchParams.get("next"));
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [preferredAircraft, setPreferredAircraft] = useState("Cessna 172S");
+  const [checkrideDate, setCheckrideDate] = useState("");
   const [status, setStatus] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const heading = useMemo(() => (
-    mode === "signin" ? "Welcome back" : "Create your account"
-  ), [mode]);
 
   useEffect(() => {
     if (!loading && user) router.replace(nextPath);
   }, [loading, nextPath, router, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSubmitting(true);
     setStatus("");
 
+    if (mode === "signup" && !/(?=.*[A-Za-z])(?=.*\d).{8,}/.test(password)) {
+      setStatus("Use at least 8 characters with both a letter and a number.");
+      setSubmitting(false);
+      return;
+    }
+
     const authCall = mode === "signin"
       ? supabase.auth.signInWithPassword({ email, password })
-      : supabase.auth.signUp({ email, password });
+      : supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback?next=/auth/confirmed`,
+            data: {
+              display_name: displayName.trim(),
+              preferred_aircraft: preferredAircraft,
+              checkride_date: checkrideDate || null,
+            },
+          },
+        });
 
     const { data, error } = await authCall;
 
     if (error) {
       setStatus(error.message);
     } else if (mode === "signup" && !data.session) {
-      setStatus("Account created. Check your email to confirm it, then sign in.");
+      setStatus("Account created. Check your email to confirm it, then return to sign in.");
     } else {
       router.replace(nextPath);
+      router.refresh();
     }
 
     setSubmitting(false);
@@ -69,58 +90,109 @@ function LoginForm() {
           </Link>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Saved study progress</p>
           <h1 className="mt-3 max-w-md text-4xl font-bold tracking-tight text-slate-950">
-            Keep your practice history tied to your checkride plan.
+            Keep your preparation tied to one clear plan.
           </h1>
           <p className="mt-5 max-w-md text-base leading-7 text-slate-600">
-            Your dashboard, weak categories, oral summaries, and checklist stay with your account.
+            Your scores, oral feedback, checklist, aircraft profile, and checkride countdown stay with your account.
           </p>
         </section>
 
-        <section className="mx-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8">
+        <section className="mx-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-8">
           <div className="mb-7">
             <Link href="/" className="mb-6 flex items-center gap-3 lg:hidden">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-white">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                  <path d="M9 2L15 5.5V12.5L9 16L3 12.5V5.5L9 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                  <path d="M9 5.5V12.5M5.8 9H12.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                </svg>
-              </div>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-white">CA</div>
               <span className="text-sm font-bold text-slate-950">CheckrideAI</span>
             </Link>
-            <h1 className="text-2xl font-bold text-slate-950">{heading}</h1>
+            <h1 className="text-2xl font-bold text-slate-950">
+              {mode === "signin" ? "Welcome back" : "Create your account"}
+            </h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               {mode === "signin"
                 ? "Sign in to continue your PPL prep."
-                : "Create an account to save your scores and oral practice."}
+                : "Tell us enough to personalize your study dashboard and oral practice."}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "signup" && (
+              <>
+                <div>
+                  <label htmlFor="display-name" className="mb-1.5 block text-sm font-medium text-slate-700">Name</label>
+                  <input
+                    id="display-name"
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    autoComplete="name"
+                    required
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-slate-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="aircraft" className="mb-1.5 block text-sm font-medium text-slate-700">Preferred aircraft</label>
+                  <select
+                    id="aircraft"
+                    value={preferredAircraft}
+                    onChange={(event) => setPreferredAircraft(event.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-slate-500"
+                  >
+                    {aircraftOptions.map((aircraft) => <option key={aircraft}>{aircraft}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="checkride-date" className="mb-1.5 block text-sm font-medium text-slate-700">Checkride date <span className="text-slate-400">(optional)</span></label>
+                  <input
+                    id="checkride-date"
+                    type="date"
+                    value={checkrideDate}
+                    onChange={(event) => setCheckrideDate(event.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-slate-500"
+                  />
+                </div>
+              </>
+            )}
+
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
               <input
+                id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
+                autoComplete="email"
                 required
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-slate-500"
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-              />
+              <div className="mb-1.5 flex items-center justify-between">
+                <label htmlFor="password" className="text-sm font-medium text-slate-700">Password</label>
+                {mode === "signin" && <Link href="/forgot-password" className="text-xs font-medium text-slate-500 hover:text-slate-950">Forgot password?</Link>}
+              </div>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  required
+                  minLength={mode === "signup" ? 8 : 6}
+                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-3 pr-11 text-sm outline-none transition focus:border-slate-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                  className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-slate-400 hover:text-slate-700"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {mode === "signup" && <p className="mt-1.5 text-xs text-slate-400">At least 8 characters with a letter and a number.</p>}
             </div>
 
-            {status && (
-              <p className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{status}</p>
-            )}
+            {status && <p role="status" className="rounded-lg bg-slate-50 px-3 py-2 text-sm leading-5 text-slate-600">{status}</p>}
 
             <button
               type="submit"
@@ -134,7 +206,7 @@ function LoginForm() {
           <button
             type="button"
             onClick={() => {
-              setMode((prev) => (prev === "signin" ? "signup" : "signin"));
+              setMode((current) => current === "signin" ? "signup" : "signin");
               setStatus("");
             }}
             className="mt-5 w-full text-center text-sm font-medium text-slate-600 transition hover:text-slate-950"
