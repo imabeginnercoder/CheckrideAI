@@ -1,5 +1,6 @@
 import "./globals.css";
 import AuthProvider from "./components/AuthProvider";
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata = {
   title: "CheckrideAI",
