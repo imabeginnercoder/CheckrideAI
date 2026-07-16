@@ -5,6 +5,7 @@ import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "../../utils/supabase";
 import { useAuth } from "../components/AuthProvider";
+import ProtectedAppShell from "../components/ProtectedAppShell";
 
 type Question = {
   id: string;
@@ -256,7 +257,7 @@ function PracticeQuizContent() {
           <button
             onClick={() => startQuiz()}
             disabled={selectedCategories.length === 0}
-            className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Start Practice Set
           </button>
@@ -286,7 +287,7 @@ function PracticeQuizContent() {
           )}
           <button
             onClick={() => { sessionStorage.removeItem(practiceSessionKey); setScreen("select"); setQuestions([]); setAnswers({}); setCurrentIndex(0); setScore(0); }}
-            className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl hover:bg-indigo-700 font-semibold transition"
+            className="w-full bg-slate-950 text-white px-6 py-3 rounded-xl hover:bg-slate-800 font-semibold transition"
           >
             Practice Again
           </button>
@@ -345,7 +346,7 @@ function PracticeQuizContent() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { window.location.href = "/"; }}
+                onClick={() => { window.location.href = "/dashboard"; }}
                 className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
               >
                 Save & Quit
@@ -443,7 +444,7 @@ function PracticeQuizContent() {
               <button
                 onClick={() => setCurrentIndex((i) => i + 1)}
                 disabled={isLast}
-                className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-slate-950 text-white font-semibold rounded-xl hover:bg-slate-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Next Question ➔
               </button>
@@ -458,8 +459,10 @@ function PracticeQuizContent() {
 
 export default function PracticeQuiz() {
   return (
-    <Suspense fallback={<div className="p-8 text-sm text-slate-400">Loading practice setup...</div>}>
-      <PracticeQuizContent />
-    </Suspense>
+    <ProtectedAppShell>
+      <Suspense fallback={<div className="p-8 text-sm text-slate-400">Loading practice setup...</div>}>
+        <PracticeQuizContent />
+      </Suspense>
+    </ProtectedAppShell>
   );
 }

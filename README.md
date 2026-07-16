@@ -7,6 +7,7 @@ CheckrideAI is a full-stack private pilot checkride preparation app. It combines
 ## Features
 
 - Authenticated user accounts with Supabase Auth
+- Public landing page with dedicated sign-in and account creation flow
 - Per-user practice scores, question results, checklist progress, and oral-session summaries
 - Practice-question sets by category
 - Timed 60-question FAA-style practice exam
@@ -115,9 +116,12 @@ After deployment, update the deployment link at the top of this README.
 ```text
 app/
   api/chat/route.ts           AI oral-exam API route
-  components/AuthProvider.tsx Supabase auth gate and user context
+  components/AuthProvider.tsx Supabase auth state and user context
+  components/ProtectedAppShell.tsx Authenticated app shell
   components/Sidebar.tsx      App navigation and sign-out
-  page.tsx                    Dashboard and learning analytics
+  page.tsx                    Public landing page
+  login/page.tsx              Sign-in and account creation page
+  dashboard/page.tsx          Dashboard and learning analytics
   practice/page.tsx           Category practice flow
   exam/page.tsx               Timed practice exam
   oral/page.tsx               AI oral-exam simulator

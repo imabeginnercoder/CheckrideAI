@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../../utils/supabase";
 import { useAuth } from "../components/AuthProvider";
+import ProtectedAppShell from "../components/ProtectedAppShell";
 
 type Message = {
   role: "user" | "assistant";
@@ -38,7 +39,7 @@ const modeInfo = {
   },
 };
 
-export default function OralPage() {
+function OralPageContent() {
   const { user } = useAuth();
   const [screen, setScreen] = useState<"select" | "chat">("select");
   const [mode, setMode] = useState<Mode>("intermediate");
@@ -262,7 +263,7 @@ export default function OralPage() {
 
           <button
             onClick={startSession}
-            className="w-full bg-indigo-600 text-white font-semibold py-3 rounded-xl hover:bg-indigo-700 transition text-sm"
+            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition text-sm"
           >
             Begin Oral Examination
           </button>
@@ -359,7 +360,7 @@ export default function OralPage() {
             <button
               onClick={sendMessage}
               disabled={!input.trim() || isLoading}
-              className="bg-indigo-600 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm"
+              className="bg-slate-950 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm"
             >
               Send
             </button>
@@ -371,5 +372,13 @@ export default function OralPage() {
       </div>
 
     </div>
+  );
+}
+
+export default function OralPage() {
+  return (
+    <ProtectedAppShell>
+      <OralPageContent />
+    </ProtectedAppShell>
   );
 }

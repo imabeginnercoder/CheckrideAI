@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../utils/supabase";
 import { useAuth } from "../components/AuthProvider";
+import ProtectedAppShell from "../components/ProtectedAppShell";
 
 type ChecklistItem = {
   id: string;
@@ -78,7 +79,7 @@ const colorMap: Record<string, { border: string; bg: string; text: string; check
   amber:   { border: "border-amber-500",   bg: "bg-amber-50",   text: "text-amber-700",   check: "accent-amber-600"   },
 };
 
-export default function CheckridePage() {
+function CheckridePageContent() {
   const { user } = useAuth();
   const allIds = sections.flatMap((s) => s.items.map((i) => i.id));
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -192,5 +193,13 @@ export default function CheckridePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CheckridePage() {
+  return (
+    <ProtectedAppShell>
+      <CheckridePageContent />
+    </ProtectedAppShell>
   );
 }

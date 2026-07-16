@@ -19,7 +19,7 @@ export default function Sidebar() {
   const linkClass = (href: string) =>
     `px-3 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium flex items-center gap-2.5 ${
       isActive(href)
-        ? "bg-indigo-600 text-white"
+        ? "bg-white text-slate-950"
         : "text-slate-400 hover:text-white hover:bg-white/8"
     }`;
 
@@ -28,10 +28,10 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-6 border-b border-white/5">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-md bg-white flex items-center justify-center shrink-0 text-slate-950">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round"/>
-              <path d="M7 5V9M5 7H9" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              <path d="M7 5V9M5 7H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
           <div>
@@ -45,7 +45,7 @@ export default function Sidebar() {
       <div className="flex flex-col p-3 space-y-0.5 flex-grow">
         <p className="px-3 pt-3 pb-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wider">Study</p>
 
-        <Link href="/" className={linkClass("/")}>
+        <Link href="/dashboard" className={linkClass("/dashboard")}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
             <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
             <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
