@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BarChart3, BookOpenCheck, ChevronLeft, ChevronRight, ClipboardCheck, MessageSquareText, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
+import { isMissingDatabaseColumn } from "@/lib/user-facing-errors";
 
 const steps = [
   {
@@ -45,7 +46,8 @@ export default function OnboardingTour({ userId }: { userId: string }) {
         .eq("id", userId)
         .maybeSingle();
 
-      if (active && !error && data && !data.onboarding_completed) setOpen(true);
+      if (active && isMissingDatabaseColumn(error, "onboarding_completed")) setOpen(true);
+      else if (active && !error && data && !data.onboarding_completed) setOpen(true);
     };
 
     load();

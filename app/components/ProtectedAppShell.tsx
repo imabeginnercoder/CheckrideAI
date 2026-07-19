@@ -5,7 +5,13 @@ import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
 import { useAuthState } from "./AuthProvider";
 
-export default function ProtectedAppShell({ children }: { children: React.ReactNode }) {
+export default function ProtectedAppShell({
+  children,
+  focus = false,
+}: {
+  children: React.ReactNode;
+  focus?: boolean;
+}) {
   const { user, loading } = useAuthState();
   const pathname = usePathname();
   const next = pathname && pathname !== "/dashboard" ? `?next=${encodeURIComponent(pathname)}` : "";
@@ -41,6 +47,10 @@ export default function ProtectedAppShell({ children }: { children: React.ReactN
         </div>
       </div>
     );
+  }
+
+  if (focus) {
+    return <main className="min-h-screen bg-slate-50 text-slate-900">{children}</main>;
   }
 
   return (

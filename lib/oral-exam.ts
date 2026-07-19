@@ -7,16 +7,50 @@ export const AI_REQUESTS_PER_DAY = 150;
 
 export const oralModeSchema = z.enum(["beginner", "intermediate", "checkride"]);
 
-export const oralMessageSchema = z.object({
-  role: z.enum(["user", "assistant"]),
-  content: z.string().trim().min(1).max(5_000),
+const requestBase = {
+  mode: oralModeSchema,
+  sessionKey: z.string().uuid(),
+};
+
+export const oralRequestSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("start"),
+    ...requestBase,
+    questionCount: z.number().int().min(5).max(30),
+  }),
+  z.object({
+    action: z.literal("evaluate"),
+    ...requestBase,
+    questionId: z.string().min(1).max(100),
+    answer: z.string().trim().min(1).max(3_000),
+    previousAnswer: z.string().trim().max(3_000).nullable().default(null),
+    followUpQuestion: z.string().trim().max(600).nullable().default(null),
+    attempt: z.number().int().min(0).max(1),
+  }),
+  z.object({
+    action: z.literal("unknown"),
+    ...requestBase,
+    questionId: z.string().min(1).max(100),
+  }),
+]);
+
+export const modelEvaluationSchema = z.object({
+  score: z.number().int().min(0).max(100),
+  verdict: z.enum(["strong", "acceptable", "partial", "incorrect"]),
+  feedback: z.string().max(420),
+  demonstrated: z.array(z.string().max(160)).max(4),
+  missing: z.array(z.string().max(160)).max(4),
+  needsFollowUp: z.boolean(),
+  followUpQuestion: z.string().max(400).nullable(),
 });
 
-export const oralRequestSchema = z.object({
-  messages: z.array(oralMessageSchema).min(1).max(80),
-  mode: oralModeSchema,
-  questionCount: z.number().int().min(5).max(30),
-  sessionKey: z.string().uuid(),
+export const oralEvaluationSchema = modelEvaluationSchema.extend({
+  questionId: z.string(),
+  acsArea: z.string(),
+  acsCode: z.string(),
+  topic: z.string(),
+  reference: z.string(),
+  answer: z.string(),
 });
 
 export const reviewAreaSchema = z.object({
@@ -36,81 +70,88 @@ export const oralAssessmentSchema = z.object({
   areasToReview: z.array(reviewAreaSchema).max(10),
 });
 
-export const oralResponseSchema = z.object({
-  reply: z.string(),
-  completed: z.boolean(),
-  questionNumber: z.number().int().min(0).max(30),
-  assessment: oralAssessmentSchema.nullable(),
-});
-
 export type OralMode = z.infer<typeof oralModeSchema>;
-export type OralMessage = z.infer<typeof oralMessageSchema>;
+export type OralEvaluation = z.infer<typeof oralEvaluationSchema>;
 export type OralAssessment = z.infer<typeof oralAssessmentSchema>;
-export type OralResponse = z.infer<typeof oralResponseSchema>;
 
-const acsCategoryMap = `
-Use only these official ${ACS_VERSION} category labels and task codes in the final assessment:
-- Pilot Qualifications (PA.I.A)
-- Airworthiness Requirements (PA.I.B)
-- Weather Information (PA.I.C)
-- Cross-Country Flight Planning (PA.I.D)
-- National Airspace System (PA.I.E)
-- Performance and Limitations (PA.I.F)
-- Operation of Systems (PA.I.G)
-- Human Factors (PA.I.H)
-- Preflight Assessment (PA.II.A)
-- Flight Deck Management (PA.II.B)
+export function buildEvaluationSystemPrompt(mode: OralMode, aircraftModel: string) {
+  const feedbackRule = mode === "checkride"
+    ? "Write feedback for the final scorecard, not as conversational coaching."
+    : mode === "beginner"
+      ? "Give one encouraging sentence and one concrete correction or improvement."
+      : "Give no more than two concise sentences of direct feedback.";
 
-When possible, make acsCode more specific, such as PA.I.B.K3 for day/night VFR equipment or PA.I.G.K1f for the electrical system. Never invent a code. If you are unsure of a sub-element, use the verified task-level code listed above.`;
+  return `You score one answer in a Private Pilot airplane oral-practice session aligned to FAA-S-ACS-6C. This is practice, not an official FAA evaluation.
 
-export function buildSystemPrompt(
-  mode: OralMode,
-  questionCount: number,
-  aircraftModel: string
-) {
-  const modeInstructions: Record<OralMode, string> = {
-    beginner: "Be patient and encouraging. Ask foundational questions, give direct guidance after weak answers, and suggest one way to strengthen correct answers.",
-    intermediate: "Be professional and moderately demanding. Probe vague answers, use realistic scenarios, and give limited guidance when the student is stuck.",
-    checkride: "Be concise and demanding. Do not give hints. Require precise, complete answers and probe statements that may reveal a knowledge gap.",
-  };
+Score only against the supplied question and rubric. Credit correct equivalent wording and sound aeronautical judgment. Do not require trivia beyond the rubric. Penalize unsafe advice, unsupported certainty, and failure to use the applicable POH/AFM when configuration-specific facts are required.
 
-  return `You are an AI study simulator conducting a Private Pilot airplane oral-exam practice session aligned to ${ACS_VERSION}. You are not an FAA evaluator and must never describe the result as an official pass or failure.
+The student's aircraft is ${aircraftModel}. Never invent model-specific limitations, speeds, quantities, or checklist steps.
 
-The student's preferred aircraft is ${aircraftModel}. Tailor aircraft-system questions to that model. Do not invent model-specific limitations, speeds, equipment, or procedures. When an exact value depends on serial number or configuration, tell the student to verify the applicable POH/AFM.
+${feedbackRule}
 
-SESSION RULES
-- Ask exactly one clear question at a time.
-- Ask ${questionCount} scored questions total. Hints and targeted follow-ups do not count as new scored questions.
-- Begin with a direct question. Do not introduce yourself with a fictional name.
-- Mix factual knowledge, risk management, scenario application, aircraft systems, weather, regulations, airspace, performance, cross-country planning, and human factors.
-- Keep an internal count by reviewing the transcript on every turn.
-- If the user sends exactly HINT_REQUESTED, do not score it or advance the question count. In checkride mode, decline the hint. Otherwise provide a useful nudge and restate the current question.
-- Distinguish aircraft documents from pilot documents. Maintenance records are not required to be carried aboard the aircraft.
-- Never claim that a generated reference replaces current FAA publications or the applicable POH/AFM.
-
-MODE
-${modeInstructions[mode]}
-
-ANSWER EVALUATION
-- A complete answer should address the knowledge, risk-management, and scenario implications appropriate to the question.
-- If an answer is partially correct, ask one targeted follow-up before moving on.
-- Correct unsafe or materially incorrect advice clearly.
-- Do not inflate scores. A polished but incomplete answer is not checkride-ready.
-
-${acsCategoryMap}
-
-OUTPUT CONTRACT
-- reply contains only the natural-language message shown to the student.
-- completed is false until the final scored question has been answered and evaluated.
-- questionNumber is the number of scored questions completed so far.
-- assessment must be null until completed is true.
-- When completed is true, reply should briefly close the session and introduce the scorecard.
-- The final assessment is a practice-readiness score, not an official FAA result.
-- areasToReview must name the exact ACS categories where the transcript showed a gap. Include a specific finding, a concrete study action, and a reliable reference such as a CFR section, AIM section, PHAK chapter, Aviation Weather Handbook chapter, ${ACS_VERSION}, or the applicable ${aircraftModel} POH/AFM section.
-- Include weak categories only in areasToReview. Put demonstrated strengths in strengths.`;
+Use a follow-up only when one short question could resolve a partially complete answer. Never request a second follow-up. Keep feedback under 70 words and the follow-up to one sentence. Do not use Markdown.`;
 }
 
-export function estimateHaikuCostMicrousd(inputTokens: number, outputTokens: number) {
-  // Haiku 4.5 standard pricing: $1/MTok input and $5/MTok output.
-  return inputTokens + outputTokens * 5;
+export function buildAssessmentFromEvaluations(evaluations: OralEvaluation[]): OralAssessment {
+  const overallScore = evaluations.length
+    ? Math.round(evaluations.reduce((sum, item) => sum + item.score, 0) / evaluations.length)
+    : 0;
+  const readiness = overallScore >= 90
+    ? "checkride-ready"
+    : overallScore >= 80
+      ? "nearly-ready"
+      : overallScore >= 65
+        ? "developing"
+        : "building-foundation";
+
+  const byArea = new Map<string, OralEvaluation[]>();
+  for (const evaluation of evaluations) {
+    const items = byArea.get(evaluation.acsArea) ?? [];
+    items.push(evaluation);
+    byArea.set(evaluation.acsArea, items);
+  }
+
+  const areaScores = [...byArea.entries()].map(([acsArea, items]) => ({
+    acsArea,
+    score: Math.round(items.reduce((sum, item) => sum + item.score, 0) / items.length),
+    items,
+  })).sort((a, b) => a.score - b.score);
+
+  const strengths = areaScores
+    .filter((area) => area.score >= 80)
+    .slice(-6)
+    .reverse()
+    .map((area) => `${area.acsArea}: ${area.score}%`);
+  const areasToReview = areaScores
+    .filter((area) => area.score < 75)
+    .slice(0, 10)
+    .map((area) => {
+      const weakest = [...area.items].sort((a, b) => a.score - b.score)[0];
+      return {
+        acsArea: area.acsArea,
+        acsCode: weakest.acsCode,
+        score: area.score,
+        finding: weakest.missing[0] ?? weakest.feedback,
+        studyRecommendation: `Review ${weakest.topic}, then run a focused practice set for ${area.acsArea}.`,
+        reference: weakest.reference,
+      };
+    });
+
+  return {
+    overallScore,
+    readiness,
+    summary: `You completed ${evaluations.length} ACS-mapped questions with an overall practice-readiness score of ${overallScore}%.`,
+    strengths,
+    areasToReview,
+  };
+}
+
+export function estimateHaikuCostMicrousd(
+  inputTokens: number,
+  outputTokens: number,
+  cacheCreationTokens = 0,
+  cacheReadTokens = 0
+) {
+  // Haiku 4.5: $1 input, $5 output, $1.25 cache write, $0.10 cache read per MTok.
+  return Math.round(inputTokens + outputTokens * 5 + cacheCreationTokens * 1.25 + cacheReadTokens * 0.1);
 }

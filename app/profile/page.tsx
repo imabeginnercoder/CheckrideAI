@@ -5,7 +5,9 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { aircraftOptions, daysUntilDate, mergeProfileWithUserMetadata, type Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
+import { authErrorMessage, isMissingDatabaseColumn, profileErrorMessage } from "@/lib/user-facing-errors";
 import { useAuth } from "../components/AuthProvider";
+import FormStatus from "../components/FormStatus";
 import ProtectedAppShell from "../components/ProtectedAppShell";
 
 type UsageSummary = {
@@ -27,13 +29,16 @@ function ProfileContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState("");
+  const [statusTone, setStatusTone] = useState<"error" | "success">("error");
 
   useEffect(() => {
     const load = async () => {
-      const [profileResult, usageResult] = await Promise.all([
-        supabase.from("profiles").select("id, display_name, checkride_date, preferred_aircraft, onboarding_completed").eq("id", user.id).maybeSingle(),
-        supabase.rpc("get_my_ai_usage_summary"),
-      ]);
+      const usagePromise = supabase.rpc("get_my_ai_usage_summary");
+      let profileResult = await supabase.from("profiles").select("id, display_name, checkride_date, preferred_aircraft, onboarding_completed").eq("id", user.id).maybeSingle();
+      if (isMissingDatabaseColumn(profileResult.error, "onboarding_completed")) {
+        profileResult = await supabase.from("profiles").select("id, display_name, checkride_date, preferred_aircraft").eq("id", user.id).maybeSingle();
+      }
+      const usageResult = await usagePromise;
 
       const repairedProfile = mergeProfileWithUserMetadata(profileResult.data as Profile | null, user);
       setProfile(repairedProfile);
@@ -45,11 +50,17 @@ function ProfileContent() {
           checkride_date: repairedProfile.checkride_date,
           preferred_aircraft: repairedProfile.preferred_aircraft,
         }, { onConflict: "id" });
-        if (repairError) setStatus(repairError.message);
+        if (repairError) {
+          setStatusTone("error");
+          setStatus(profileErrorMessage("save"));
+        }
       }
 
       if (usageResult.data?.[0]) setUsage(usageResult.data[0] as UsageSummary);
-      if (profileResult.error) setStatus(profileResult.error.message);
+      if (profileResult.error) {
+        setStatusTone("error");
+        setStatus(profileErrorMessage("load"));
+      }
       setLoading(false);
     };
 
@@ -60,6 +71,7 @@ function ProfileContent() {
     event.preventDefault();
     setSaving(true);
     setStatus("");
+    setStatusTone("error");
 
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: user.id,
@@ -80,13 +92,14 @@ function ProfileContent() {
       metadataError = result.error;
     }
 
-    setStatus(
-      profileError
-        ? profileError.message
-        : metadataError
-          ? `Profile saved, but account metadata could not be updated: ${metadataError.message}`
-          : "Profile saved. Future oral sessions will use this aircraft."
-    );
+    if (profileError) {
+      setStatus(profileErrorMessage("save"));
+    } else if (metadataError) {
+      setStatus(authErrorMessage(metadataError, "Your profile was saved, but account preferences could not be synchronized."));
+    } else {
+      setStatusTone("success");
+      setStatus("Profile saved. Future oral sessions will use this aircraft.");
+    }
     setSaving(false);
   };
 
@@ -124,7 +137,7 @@ function ProfileContent() {
               <input id="profile-date" type="date" value={profile.checkride_date ?? ""} onChange={(event) => setProfile((current) => ({ ...current, checkride_date: event.target.value || null }))} disabled={loading} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-500 disabled:bg-slate-50" />
             </div>
           </div>
-          {status && <p role="status" className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{status}</p>}
+          <FormStatus message={status} tone={statusTone} className="mt-4" />
           <button disabled={loading || saving} className="mt-5 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{saving ? "Saving..." : "Save profile"}</button>
         </form>
 

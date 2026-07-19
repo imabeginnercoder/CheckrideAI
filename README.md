@@ -8,7 +8,7 @@ CheckrideAI is a full-stack private pilot checkride preparation app for students
 
 - Build focused practice sets by knowledge category
 - Take timed, 60-question practice exams
-- Rehearse oral questions with an aircraft-aware AI examiner
+- Rehearse curated FAA-S-ACS-6C scenarios with an aircraft-aware AI examiner
 - Receive structured ACS scoring, readiness feedback, and targeted review areas
 - Track score history, category mastery, and spaced-repetition suggestions
 - Save a preferred aircraft, checkride date, checklist progress, and study history per account
@@ -28,7 +28,8 @@ CheckrideAI is a full-stack private pilot checkride preparation app for students
 - Cookie-backed Supabase sessions protect authenticated pages on the server.
 - PostgreSQL Row Level Security isolates every user's scores, profiles, checklists, and oral sessions.
 - The AI endpoint independently verifies authentication, validates request limits, applies per-user rate limits, and keeps the Anthropic key server-only.
-- Oral-exam responses use a structured schema for ACS categories, scores, strengths, and study recommendations instead of relying on free-form text parsing.
+- Oral sessions select from a server-owned ACS question bank; the model evaluates one answer against a defined rubric instead of inventing the exam or receiving the full transcript.
+- Oral-exam responses use a structured schema for scores, strengths, missing knowledge, and study recommendations instead of relying on free-form text parsing.
 - AI request records store model usage, token counts, and estimated cost for operational visibility.
 - GitHub Actions runs lint, unit tests, a production build, and desktop browser workflows on pushes and pull requests.
 
@@ -73,7 +74,8 @@ app/
   oral/              Oral session and ACS assessment UI
   profile/           Pilot preferences and AI usage
 lib/
-  oral-exam.ts       AI schemas, ACS context, limits, and cost calculation
+  acs-oral-questions.ts  ACS-mapped scenarios and adaptive selection
+  oral-exam.ts       Scoring schemas, assessment logic, limits, and cost calculation
   profile.ts         Profile synchronization and date helpers
   supabase/          Browser, server, and proxy clients
 supabase/

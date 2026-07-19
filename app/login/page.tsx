@@ -4,9 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { authErrorMessage } from "@/lib/user-facing-errors";
 import { aircraftOptions } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthState } from "../components/AuthProvider";
+import FormStatus from "../components/FormStatus";
 
 function safeNextPath(value: string | null) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
@@ -18,6 +20,7 @@ function LoginForm() {
   const { user, loading } = useAuthState();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
   const nextPath = safeNextPath(searchParams.get("next"));
+  const confirmationFailed = searchParams.get("error") === "confirmation";
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +28,8 @@ function LoginForm() {
   const [displayName, setDisplayName] = useState("");
   const [preferredAircraft, setPreferredAircraft] = useState("Cessna 172S");
   const [checkrideDate, setCheckrideDate] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(confirmationFailed ? "That confirmation link is invalid or has expired. Request a new email and try again." : "");
+  const [statusTone, setStatusTone] = useState<"error" | "success">("error");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -36,6 +40,7 @@ function LoginForm() {
     event.preventDefault();
     setSubmitting(true);
     setStatus("");
+    setStatusTone("error");
 
     if (mode === "signup" && !/(?=.*[A-Za-z])(?=.*\d).{8,}/.test(password)) {
       setStatus("Use at least 8 characters with both a letter and a number.");
@@ -61,8 +66,9 @@ function LoginForm() {
     const { data, error } = await authCall;
 
     if (error) {
-      setStatus(error.message);
+      setStatus(authErrorMessage(error, mode === "signin" ? "We could not sign you in. Please try again." : "We could not create your account. Please try again."));
     } else if (mode === "signup" && !data.session) {
+      setStatusTone("success");
       setStatus("Account created. Check your email to confirm it, then return to sign in.");
     } else {
       router.replace(nextPath);
@@ -192,7 +198,7 @@ function LoginForm() {
               {mode === "signup" && <p className="mt-1.5 text-xs text-slate-400">At least 8 characters with a letter and a number.</p>}
             </div>
 
-            {status && <p role="status" className="rounded-lg bg-slate-50 px-3 py-2 text-sm leading-5 text-slate-600">{status}</p>}
+            <FormStatus message={status} tone={statusTone} />
 
             <button
               type="submit"

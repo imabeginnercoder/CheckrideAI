@@ -1,7 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
@@ -40,6 +42,7 @@ function ExamPageContent() {
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [score, setScore] = useState(0);
+  const [questionNavOpen, setQuestionNavOpen] = useState(true);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const toggleFlag = (i: number) => {
@@ -119,6 +122,7 @@ function ExamPageContent() {
   if (screen === "intro") {
     return (
       <div className="p-8 max-w-4xl mx-auto">
+        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-950"><ArrowLeft size={16} /> Dashboard</Link>
         <div className="mb-7">
           <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">FAA Knowledge Test</span>
           <h1 className="text-2xl font-bold text-slate-900 mt-1">Private Pilot Practice Exam</h1>
@@ -169,6 +173,7 @@ function ExamPageContent() {
 
     return (
       <div className="p-8 max-w-4xl mx-auto">
+        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-950"><ArrowLeft size={16} /> Dashboard</Link>
         <div className="mb-7">
           <h1 className="text-2xl font-bold text-slate-900">Exam Results</h1>
           <p className="text-slate-500 mt-0.5 text-sm">Review your practice exam performance.</p>
@@ -243,16 +248,13 @@ function ExamPageContent() {
     <div className="flex h-screen bg-slate-50 overflow-hidden">
 
       {/* Question navigator sidebar */}
-      <div className="w-56 bg-white border-r border-slate-200 flex flex-col shrink-0">
-        <div className="p-4 border-b border-slate-100">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Progress</p>
-          <p className="text-sm font-semibold text-slate-800 mt-1">{answeredCount} / {questions.length} answered</p>
-          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2">
-            <div
-              className="bg-indigo-500 h-1.5 rounded-full transition-all"
-              style={{ width: `${(answeredCount / questions.length) * 100}%` }}
-            />
+      {questionNavOpen ? <aside className="w-56 bg-white border-r border-slate-200 flex flex-col shrink-0">
+        <div className="flex items-start justify-between border-b border-slate-100 p-4">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Progress</p>
+            <p className="text-sm font-semibold text-slate-800 mt-1">{answeredCount} / {questions.length} answered</p>
           </div>
+          <button type="button" onClick={() => setQuestionNavOpen(false)} aria-label="Hide question navigator" title="Hide question navigator" className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-950"><PanelLeftClose size={17} /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-2">
           {flagged.size > 0 && (
@@ -305,7 +307,7 @@ function ExamPageContent() {
             Submit Exam
           </button>
         </div>
-      </div>
+      </aside> : <div className="shrink-0 border-r border-slate-200 bg-white p-2"><button type="button" onClick={() => setQuestionNavOpen(true)} aria-label="Show question navigator" title="Show question navigator" className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-950"><PanelLeftOpen size={18} /></button></div>}
 
       {/* Main exam area */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -313,9 +315,12 @@ function ExamPageContent() {
         {/* Header with timer */}
         <div className="bg-white border-b border-slate-200 px-6 py-3 shrink-0">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
+              <Link href="/dashboard" aria-label="Save and return to dashboard" title="Save and return to dashboard" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-950"><ArrowLeft size={17} /></Link>
+              <div>
               <p className="text-xs text-slate-400">FAA Private Pilot Knowledge Test</p>
               <p className="text-sm font-semibold text-slate-800">Question {currentIndex + 1} of {questions.length}</p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
             <button
@@ -424,7 +429,7 @@ function ExamPageContent() {
 
 export default function ExamPage() {
   return (
-    <ProtectedAppShell>
+    <ProtectedAppShell focus>
       <ExamPageContent />
     </ProtectedAppShell>
   );

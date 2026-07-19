@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
@@ -36,6 +38,7 @@ function PracticeQuizContent() {
   const [loading, setLoading] = useState(true);
   const [questionCount, setQuestionCount] = useState(20);
   const [optionOrders, setOptionOrders] = useState<Record<number, ("option_a" | "option_b" | "option_c")[]>>({});
+  const [questionNavOpen, setQuestionNavOpen] = useState(true);
 
   // Restore session from sessionStorage after mount (client-only)
   useEffect(() => {
@@ -180,6 +183,7 @@ function PracticeQuizContent() {
 
     return (
       <div className="p-8 max-w-4xl mx-auto">
+        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-950"><ArrowLeft size={16} /> Dashboard</Link>
         <div className="mb-7">
           <h1 className="text-2xl font-bold text-slate-900">Practice Questions</h1>
           <p className="text-slate-500 mt-0.5 text-sm">Pick which categories you want to practice.</p>
@@ -270,6 +274,7 @@ function PracticeQuizContent() {
   if (screen === "results") {
     return (
       <div className="p-8 max-w-4xl mx-auto">
+        <Link href="/dashboard" className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-950"><ArrowLeft size={16} /> Dashboard</Link>
         <div className="mb-7">
           <h1 className="text-2xl font-bold text-slate-900">Practice Complete</h1>
           <p className="text-slate-500 mt-0.5 text-sm">Review your score and choose what to do next.</p>
@@ -298,45 +303,42 @@ function PracticeQuizContent() {
 
   // Quiz Screen
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
 
       {/* Question Sidebar */}
-      <div className="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0">
-        <div className="p-4 border-b border-slate-200">
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Questions</p>
-          <p className="text-sm text-slate-500 mt-1">
-            {Object.keys(answers).length} of {questions.length} answered
-          </p>
+      {questionNavOpen ? (
+        <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white">
+          <div className="flex items-start justify-between border-b border-slate-200 p-4">
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-400">Questions</p>
+              <p className="mt-1 text-sm text-slate-500">{Object.keys(answers).length} of {questions.length} answered</p>
+            </div>
+            <button type="button" onClick={() => setQuestionNavOpen(false)} aria-label="Hide question navigator" title="Hide question navigator" className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-950"><PanelLeftClose size={17} /></button>
+          </div>
+          <div className="grid grid-cols-5 gap-1.5 overflow-y-auto p-3">
+            {questions.map((q, i) => {
+              const answered = answers[i] !== undefined;
+              const correct = answers[i] === q.correct_answer;
+              const isCurrent = i === currentIndex;
+              const statusStyle = isCurrent
+                ? "bg-slate-950 text-white"
+                : answered && correct
+                  ? "bg-emerald-100 text-emerald-800"
+                  : answered
+                    ? "bg-rose-100 text-rose-800"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200";
+              return <button key={q.id} type="button" onClick={() => setCurrentIndex(i)} aria-label={`Question ${i + 1}: ${q.category}`} className={`aspect-square rounded-md text-xs font-bold ${statusStyle}`}>{i + 1}</button>;
+            })}
+          </div>
+        </aside>
+      ) : (
+        <div className="shrink-0 border-r border-slate-200 bg-white p-2">
+          <button type="button" onClick={() => setQuestionNavOpen(true)} aria-label="Show question navigator" title="Show question navigator" className="flex h-9 w-9 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-950"><PanelLeftOpen size={18} /></button>
         </div>
-        <div className="overflow-y-auto flex-1">
-          {questions.map((q, i) => {
-            const answered = answers[i] !== undefined;
-            const correct = answers[i] === q.correct_answer;
-            const isCurrent = i === currentIndex;
-
-            let statusStyle = "border-slate-200 text-slate-500";
-            if (isCurrent) statusStyle = "border-blue-500 bg-blue-50 text-blue-900";
-            else if (answered && correct) statusStyle = "border-green-400 bg-green-50 text-green-800";
-            else if (answered && !correct) statusStyle = "border-rose-400 bg-rose-50 text-rose-800";
-
-            return (
-              <button
-                key={q.id}
-                onClick={() => setCurrentIndex(i)}
-                className={`w-full text-left p-3 border-l-4 transition-all hover:bg-slate-50 ${statusStyle}`}
-              >
-                <p className="text-xs font-bold mb-1">Q{i + 1} · {q.category}</p>
-                <p className="text-xs leading-relaxed line-clamp-2 text-slate-500">
-                  {q.question_text}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      )}
 
       {/* Main Quiz Area */}
-      <div className="flex-1 overflow-y-auto p-10">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         <div className="w-full max-w-3xl mx-auto">
 
           <div className="flex justify-between items-end mb-8">
@@ -345,12 +347,12 @@ function PracticeQuizContent() {
               <p className="text-slate-500 mt-0.5 text-sm">{selectedCategories.join(", ")}</p>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => { window.location.href = "/dashboard"; }}
+              <Link
+                href="/dashboard"
                 className="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50 transition"
               >
                 Save & Quit
-              </button>
+              </Link>
               <div className="bg-white px-4 py-2 rounded-lg border border-slate-200">
                 <span className="text-slate-600 font-bold text-sm">
                   Question {currentIndex + 1} of {questions.length}
@@ -379,7 +381,7 @@ function PracticeQuizContent() {
                 </div>
             )}
 
-            <h2 className="ml-4 text-2xl font-semibold mt-4 mb-8 text-slate-800 leading-relaxed">
+            <h2 className="ml-4 mt-4 mb-8 text-xl font-semibold leading-8 text-slate-800">
               {question.question_text}
             </h2>
 
@@ -459,7 +461,7 @@ function PracticeQuizContent() {
 
 export default function PracticeQuiz() {
   return (
-    <ProtectedAppShell>
+    <ProtectedAppShell focus>
       <Suspense fallback={<div className="p-8 text-sm text-slate-400">Loading practice setup...</div>}>
         <PracticeQuizContent />
       </Suspense>

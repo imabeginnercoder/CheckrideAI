@@ -1,21 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, UserRound } from "lucide-react";
+import { ClipboardCheck, MessageSquareText, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "./AuthProvider";
 
 export default function Sidebar() {
-  const [checkrideOpen, setCheckrideOpen] = useState(false);
   const { user } = useAuth();
   const pathname = usePathname();
 
   const isActive = (href: string) => pathname === href;
-  const checkrideActive = isActive("/oral") || isActive("/checklist");
-  const checkrideExpanded = checkrideOpen || checkrideActive;
-
   const linkClass = (href: string) =>
     `px-3 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium flex items-center gap-2.5 ${
       isActive(href)
@@ -26,19 +21,19 @@ export default function Sidebar() {
   return (
     <nav className="w-60 flex flex-col shrink-0 border-r border-white/5" style={{ backgroundColor: "#0d1117" }}>
       {/* Logo */}
-      <div className="px-6 py-6 border-b border-white/5">
-        <div className="flex items-center gap-2.5">
+      <div className="border-b border-white/5 px-4 py-4">
+        <Link href="/dashboard" aria-label="CheckrideAI dashboard" className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition hover:bg-white/8">
           <div className="w-7 h-7 rounded-md bg-white flex items-center justify-center shrink-0 text-slate-950">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M7 1L13 4V10L7 13L1 10V4L7 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
               <path d="M7 5V9M5 7H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-sm font-semibold text-white tracking-tight">CheckrideAI</h1>
             <p className="text-xs text-slate-500 tracking-wide">PPL Oral Prep</p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Nav */}
@@ -73,38 +68,14 @@ export default function Sidebar() {
 
         <p className="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wider">Checkride Prep</p>
 
-        {/* Dropdown trigger */}
-        <button
-          onClick={() => setCheckrideOpen((prev) => !prev)}
-          className={`px-3 py-2.5 rounded-lg hover:bg-white/8 transition-all duration-150 text-sm font-medium flex justify-between items-center w-full ${
-            checkrideActive
-              ? "text-white bg-white/8"
-              : "text-slate-400 hover:text-white"
-          }`}
-        >
-          <span className="flex items-center gap-2.5">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0">
-              <path d="M8 1.5L14 5V11L8 14.5L2 11V5L8 1.5Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
-              <path d="M8 5.5V8.5M8 10.5V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-            </svg>
-            Oral & Checklist
-          </span>
-          <ChevronDown
-            size={14}
-            className={`text-slate-600 transition-transform duration-200 ${checkrideExpanded ? "rotate-180" : ""}`}
-          />
-        </button>
-
-        {checkrideExpanded && (
-          <div className="flex flex-col space-y-0.5 pl-4 ml-2 border-l border-white/8">
-            <Link href="/oral" className={linkClass("/oral")}>
-              Mock Oral AI DPE
-            </Link>
-            <Link href="/checklist" className={linkClass("/checklist")}>
-              Checkride Checklist
-            </Link>
-          </div>
-        )}
+        <Link href="/oral" className={linkClass("/oral")}>
+          <MessageSquareText size={16} className="shrink-0" />
+          AI Oral Examiner
+        </Link>
+        <Link href="/checklist" className={linkClass("/checklist")}>
+          <ClipboardCheck size={16} className="shrink-0" />
+          Checkride Checklist
+        </Link>
 
         <p className="px-3 pt-4 pb-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wider">Account</p>
         <Link href="/profile" className={linkClass("/profile")}>

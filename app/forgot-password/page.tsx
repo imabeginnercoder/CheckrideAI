@@ -2,23 +2,32 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { authErrorMessage } from "@/lib/user-facing-errors";
 import { supabase } from "@/lib/supabase/client";
+import FormStatus from "../components/FormStatus";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
+  const [statusTone, setStatusTone] = useState<"error" | "success">("error");
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
     setStatus("");
+    setStatusTone("error");
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     });
 
-    setStatus(error ? error.message : "Check your email for a secure password-reset link.");
+    if (error) {
+      setStatus(authErrorMessage(error, "We could not send a reset link. Please try again."));
+    } else {
+      setStatusTone("success");
+      setStatus("Check your email for a secure password-reset link.");
+    }
     setSubmitting(false);
   };
 
@@ -33,7 +42,7 @@ export default function ForgotPasswordPage() {
             <label htmlFor="recovery-email" className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
             <input id="recovery-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-500" />
           </div>
-          {status && <p role="status" className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{status}</p>}
+          <FormStatus message={status} tone={statusTone} />
           <button disabled={submitting} className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{submitting ? "Sending..." : "Send reset link"}</button>
         </form>
       </section>

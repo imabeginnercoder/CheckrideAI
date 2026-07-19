@@ -16,6 +16,10 @@ test("a test user can sign in and open protected study workflows", async ({ page
   await page.goto("/practice");
   await expect(page.getByRole("heading", { name: "Practice Questions" })).toBeVisible();
 
+  await page.goto("/oral");
+  await expect(page.getByRole("heading", { name: "AI oral examiner" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Begin oral practice" })).toBeVisible();
+
   await page.goto("/profile");
   await expect(page.getByRole("heading", { name: "Profile and study plan" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to dashboard" })).toBeVisible();

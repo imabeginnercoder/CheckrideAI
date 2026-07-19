@@ -3,19 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
+import { authErrorMessage } from "@/lib/user-facing-errors";
 import { supabase } from "@/lib/supabase/client";
+import FormStatus from "../components/FormStatus";
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState("");
+  const [statusTone, setStatusTone] = useState<"error" | "success">("error");
   const [complete, setComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setStatus("");
+    setStatusTone("error");
 
     if (!/(?=.*[A-Za-z])(?=.*\d).{8,}/.test(password)) {
       setStatus("Use at least 8 characters with both a letter and a number.");
@@ -28,7 +32,8 @@ export default function ResetPasswordPage() {
 
     setSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password });
-    setStatus(error ? error.message : "Password updated successfully.");
+    setStatus(error ? authErrorMessage(error, "We could not update your password. Request a new reset link and try again.") : "Password updated successfully.");
+    if (!error) setStatusTone("success");
     setComplete(!error);
     setSubmitting(false);
   };
@@ -53,7 +58,7 @@ export default function ResetPasswordPage() {
               <label htmlFor="confirm-password" className="mb-1.5 block text-sm font-medium text-slate-700">Confirm password</label>
               <input id="confirm-password" type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required autoComplete="new-password" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-slate-500" />
             </div>
-            {status && <p role="status" className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">{status}</p>}
+            <FormStatus message={status} tone={statusTone} />
             <button disabled={submitting} className="w-full rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-50">{submitting ? "Updating..." : "Update password"}</button>
           </form>
         )}

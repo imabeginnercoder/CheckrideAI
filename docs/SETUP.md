@@ -67,25 +67,31 @@ Add the matching Vercel preview pattern when authentication needs to work in pre
 
 ## Authentication Emails
 
-In **Supabase > Authentication > Emails > Templates**, update the confirmation and recovery links.
+The production-ready HTML is stored in:
 
-### Confirm Sign Up
+- [`supabase/email-templates/confirm-signup.html`](../supabase/email-templates/confirm-signup.html)
+- [`supabase/email-templates/reset-password.html`](../supabase/email-templates/reset-password.html)
 
-```html
-<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/auth/confirmed">
-  Confirm email address
-</a>
-```
+For a hosted Supabase project:
 
-### Reset Password
+1. Open **Authentication > Email Templates** in Supabase.
+2. Choose **Confirm sign up**, use the subject `Confirm your CheckrideAI account`, and paste the confirmation template HTML.
+3. Choose **Reset password**, use the subject `Reset your CheckrideAI password`, and paste the reset template HTML.
+4. Send one signup and one reset email to a test account and verify both links on the production domain.
 
-```html
-<a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password">
-  Reset password
-</a>
-```
+Both templates use Supabase's `{{ .ConfirmationURL }}` variable. The application supplies the destination through `emailRedirectTo` or `redirectTo`, and `/auth/callback` exchanges the returned code for a cookie-backed session.
 
-The `/auth/confirm` route verifies the token on the server, stores the session in cookies, and redirects to the requested application page. `/auth/callback` supports Supabase's PKCE code-exchange flow.
+### Branded Sender
+
+Supabase's built-in SMTP service is for development. For production delivery:
+
+1. Create an account with an SMTP provider such as Resend, Postmark, Amazon SES, or SendGrid.
+2. Add and verify `pplproai.app` with the provider. Copy the DNS records it gives you into the domain's DNS settings.
+3. Create an SMTP credential and a sender such as `CheckrideAI <no-reply@pplproai.app>`.
+4. In Supabase, open **Authentication > SMTP Settings**, enable custom SMTP, and enter the provider's host, port, username, and password.
+5. Disable click tracking for authentication emails so the provider does not rewrite confirmation links.
+
+SMTP passwords are secrets. Store them only in Supabase's SMTP settings, never in this repository or Vercel's public environment variables.
 
 ## Local Development
 

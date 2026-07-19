@@ -81,6 +81,12 @@ create table if not exists public.ai_usage (
   estimated_cost_microusd bigint not null default 0
 );
 
+alter table public.ai_usage add column if not exists session_key uuid;
+alter table public.ai_usage add column if not exists request_kind text not null default 'oral_turn';
+alter table public.ai_usage add column if not exists cache_creation_input_tokens integer not null default 0;
+alter table public.ai_usage add column if not exists cache_read_input_tokens integer not null default 0;
+alter table public.ai_usage add column if not exists estimated_cost_microusd bigint not null default 0;
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql

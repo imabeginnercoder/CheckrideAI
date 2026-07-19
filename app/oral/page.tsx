@@ -1,308 +1,296 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, Check, ChevronRight, CircleHelp, Lightbulb, Send, X } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
-import type { OralAssessment, OralMessage, OralMode, OralResponse } from "@/lib/oral-exam";
+import {
+  buildAssessmentFromEvaluations,
+  type OralAssessment,
+  type OralEvaluation,
+  type OralMode,
+} from "@/lib/oral-exam";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
 import AssessmentCard from "./AssessmentCard";
 
-const modeInfo = {
+type PublicQuestion = {
+  id: string;
+  acsArea: string;
+  acsCode: string;
+  topic: string;
+  prompt: string;
+  hint: string;
+  reference: string;
+};
+
+type SessionEntry = {
+  question: PublicQuestion;
+  answer: string;
+  evaluation: OralEvaluation;
+};
+
+type SavedSession = {
+  screen: "select" | "exam" | "results";
+  mode: OralMode;
+  questionCount: number;
+  questions: PublicQuestion[];
+  entries: SessionEntry[];
+  sessionKey: string;
+  aircraftModel: string;
+  assessment: OralAssessment | null;
+};
+
+const modeInfo: Record<OralMode, { label: string; description: string }> = {
   beginner: {
-    label: "Beginner",
-    description: "Early in training. Covers fundamentals — basic aerodynamics, primary controls, simple weather, and basic regulations.",
-    accentColor: "#16a34a",
-    badgeStyle: "bg-green-50 text-green-700",
-    borderActive: "border-green-500",
-    bgActive: "bg-green-600",
+    label: "Guided practice",
+    description: "Hints are available and feedback explains the most important correction after each answer.",
   },
   intermediate: {
-    label: "Intermediate",
-    description: "More than halfway through training. Covers cross-country planning, weather products, airspace, systems, and performance.",
-    accentColor: "#d97706",
-    badgeStyle: "bg-amber-50 text-amber-700",
-    borderActive: "border-amber-500",
-    bgActive: "bg-amber-500",
+    label: "Standard practice",
+    description: "A balanced ACS review with concise feedback and one clarifying follow-up when useful.",
   },
   checkride: {
-    label: "Checkride Ready",
-    description: "Final prep before your checkride. Full ACS-level oral covering all required knowledge areas. No hints given.",
-    accentColor: "#dc2626",
-    badgeStyle: "bg-rose-50 text-rose-700",
-    borderActive: "border-rose-500",
-    bgActive: "bg-rose-600",
+    label: "Checkride simulation",
+    description: "No hints or answer feedback during the session. Review the complete scorecard at the end.",
   },
 };
 
+function verdictLabel(verdict: OralEvaluation["verdict"]) {
+  return ({ strong: "Strong", acceptable: "Acceptable", partial: "Needs detail", incorrect: "Review needed" })[verdict];
+}
+
 function OralPageContent() {
   const { user } = useAuth();
-  const [screen, setScreen] = useState<"select" | "chat" | "results">("select");
+  const [screen, setScreen] = useState<SavedSession["screen"]>("select");
   const [mode, setMode] = useState<OralMode>("intermediate");
   const [questionCount, setQuestionCount] = useState(10);
-  const [messages, setMessages] = useState<OralMessage[]>([]);
+  const [questions, setQuestions] = useState<PublicQuestion[]>([]);
+  const [entries, setEntries] = useState<SessionEntry[]>([]);
+  const [sessionKey, setSessionKey] = useState("");
+  const [aircraftModel, setAircraftModel] = useState("your preferred aircraft");
+  const [assessment, setAssessment] = useState<OralAssessment | null>(null);
   const [input, setInput] = useState("");
+  const [originalAnswer, setOriginalAnswer] = useState<string | null>(null);
+  const [followUpQuestion, setFollowUpQuestion] = useState<string | null>(null);
+  const [hintVisible, setHintVisible] = useState(false);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sessionKey, setSessionKey] = useState("");
-  const [assessment, setAssessment] = useState<OralAssessment | null>(null);
-  const [aircraftModel, setAircraftModel] = useState("your preferred aircraft");
-  const [questionsCompleted, setQuestionsCompleted] = useState(0);
-  const sessionRestoredRef = useRef(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [restored, setRestored] = useState(false);
 
-  // Restore session from sessionStorage after mount (client-only)
+  const currentQuestion = questions[entries.length];
+  const progress = questions.length ? (entries.length / questions.length) * 100 : 0;
+
   useEffect(() => {
-    queueMicrotask(() => {
-      try {
-        const raw = sessionStorage.getItem("oral_session");
-        if (raw) {
-          const s = JSON.parse(raw);
-          if (s.screen) setScreen(s.screen);
-          if (s.mode) setMode(s.mode);
-          if (s.questionCount) setQuestionCount(s.questionCount);
-          if (s.messages) setMessages(s.messages);
-          if (s.sessionKey) setSessionKey(s.sessionKey);
-          if (s.assessment) setAssessment(s.assessment);
-          if (s.aircraftModel) setAircraftModel(s.aircraftModel);
-          if (s.questionsCompleted) setQuestionsCompleted(s.questionsCompleted);
-        }
-      } catch { /* ignore */ }
-      sessionRestoredRef.current = true;
-    });
+    try {
+      const raw = sessionStorage.getItem("oral_session_v2");
+      if (raw) {
+        const saved = JSON.parse(raw) as SavedSession;
+        setScreen(saved.screen);
+        setMode(saved.mode);
+        setQuestionCount(saved.questionCount);
+        setQuestions(saved.questions ?? []);
+        setEntries(saved.entries ?? []);
+        setSessionKey(saved.sessionKey ?? "");
+        setAircraftModel(saved.aircraftModel ?? "your preferred aircraft");
+        setAssessment(saved.assessment ?? null);
+      }
+    } catch {
+      sessionStorage.removeItem("oral_session_v2");
+    }
+    setRestored(true);
   }, []);
 
   useEffect(() => {
-    if (!sessionRestoredRef.current) return;
-    sessionStorage.setItem("oral_session", JSON.stringify({
-      screen,
-      mode,
-      questionCount,
-      messages,
-      sessionKey,
-      assessment,
-      aircraftModel,
-      questionsCompleted,
-    }));
-  }, [screen, mode, questionCount, messages, sessionKey, assessment, aircraftModel, questionsCompleted]);
+    if (!restored) return;
+    const saved: SavedSession = {
+      screen, mode, questionCount, questions, entries, sessionKey, aircraftModel, assessment,
+    };
+    sessionStorage.setItem("oral_session_v2", JSON.stringify(saved));
+  }, [restored, screen, mode, questionCount, questions, entries, sessionKey, aircraftModel, assessment]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const latestEntry = entries.at(-1);
+  const shownFeedback = useMemo(() => {
+    if (!latestEntry || mode === "checkride" || !feedbackVisible) return null;
+    return latestEntry.evaluation;
+  }, [feedbackVisible, latestEntry, mode]);
 
-  const saveCompletedSession = async (
-    finalMessages: OralMessage[],
-    finalAssessment: OralAssessment,
-    completedSessionKey: string,
-    completedAircraft: string
-  ) => {
+  async function postExam(body: object) {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "The oral examiner could not respond.");
+    return data;
+  }
+
+  async function startSession() {
+    const nextSessionKey = crypto.randomUUID();
+    setIsLoading(true);
+    setError("");
+    try {
+      const data = await postExam({ action: "start", mode, questionCount, sessionKey: nextSessionKey });
+      setSessionKey(nextSessionKey);
+      setQuestions(data.questions);
+      setEntries([]);
+      setAircraftModel(data.aircraftModel);
+      setAssessment(null);
+      setScreen("exam");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The session could not start.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function saveCompletedSession(finalEntries: SessionEntry[], finalAssessment: OralAssessment) {
     const { error: saveError } = await supabase.from("oral_sessions").upsert({
       user_id: user.id,
-      session_key: completedSessionKey,
+      session_key: sessionKey,
       mode,
-      question_count: questionCount,
-      transcript: finalMessages,
+      question_count: questions.length,
+      transcript: finalEntries,
       summary: finalAssessment.summary,
       overall_score: finalAssessment.overallScore,
       readiness: finalAssessment.readiness,
       assessment: finalAssessment,
-      aircraft_model: completedAircraft,
+      aircraft_model: aircraftModel,
       acs_version: "FAA-S-ACS-6C",
     }, { onConflict: "session_key" });
-
     if (saveError) throw saveError;
-  };
+  }
 
-  const callExaminer = async (requestMessages: OralMessage[], activeSessionKey: string) => {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages: requestMessages,
-        mode,
-        questionCount,
-        sessionKey: activeSessionKey,
-      }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "The AI examiner could not respond.");
-    return data as OralResponse & { aircraftModel: string };
-  };
+  async function recordEvaluation(evaluation: OralEvaluation, displayedAnswer: string) {
+    if (!currentQuestion) return;
+    const finalEntries = [...entries, { question: currentQuestion, answer: displayedAnswer, evaluation }];
+    setEntries(finalEntries);
+    setInput("");
+    setOriginalAnswer(null);
+    setFollowUpQuestion(null);
+    setHintVisible(false);
 
-  const startSession = async () => {
-    const newSessionKey = crypto.randomUUID();
-    setSessionKey(newSessionKey);
-    setAssessment(null);
-    setQuestionsCompleted(0);
-    setError("");
-    setScreen("chat");
-    setIsLoading(true);
-
-    try {
-      const openingMessages: OralMessage[] = [{ role: "user", content: "Begin the oral examination." }];
-      const data = await callExaminer(openingMessages, newSessionKey);
-      setAircraftModel(data.aircraftModel);
-      setQuestionsCompleted(data.questionNumber);
-      setMessages([
-        ...openingMessages,
-        { role: "assistant", content: data.reply },
-      ]);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "The session could not start.");
-      setScreen("select");
+    if (finalEntries.length === questions.length) {
+      const finalAssessment = buildAssessmentFromEvaluations(finalEntries.map((entry) => entry.evaluation));
+      setAssessment(finalAssessment);
+      await saveCompletedSession(finalEntries, finalAssessment);
+      setScreen("results");
+      return;
     }
 
-    setIsLoading(false);
-  };
+    setFeedbackVisible(mode !== "checkride");
+  }
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const newMessages: OralMessage[] = [
-      ...messages,
-      { role: "user", content: input.trim() },
-    ];
-    setMessages(newMessages);
-    setInput("");
-    setError("");
+  async function submitAnswer() {
+    const answer = input.trim();
+    if (!answer || !currentQuestion || isLoading) return;
     setIsLoading(true);
-
+    setError("");
     try {
-      const data = await callExaminer(newMessages, sessionKey);
-      const finalMessages: OralMessage[] = [
-        ...newMessages,
-        { role: "assistant", content: data.reply },
-      ];
-      setMessages(finalMessages);
-      setQuestionsCompleted(data.questionNumber);
-      setAircraftModel(data.aircraftModel);
-      if (data.completed && data.assessment) {
-        setAssessment(data.assessment);
-        await saveCompletedSession(finalMessages, data.assessment, sessionKey, data.aircraftModel);
-        setScreen("results");
+      const data = await postExam({
+        action: "evaluate",
+        mode,
+        sessionKey,
+        questionId: currentQuestion.id,
+        answer,
+        previousAnswer: originalAnswer,
+        followUpQuestion,
+        attempt: followUpQuestion ? 1 : 0,
+      });
+      const evaluation = data.evaluation as OralEvaluation;
+      if (evaluation.needsFollowUp && evaluation.followUpQuestion && !followUpQuestion) {
+        setOriginalAnswer(answer);
+        setFollowUpQuestion(evaluation.followUpQuestion);
+        setInput("");
+      } else {
+        const displayedAnswer = originalAnswer ? `${originalAnswer}\nFollow-up: ${answer}` : answer;
+        await recordEvaluation(evaluation, displayedAnswer);
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Something went wrong. Please try again.");
+      setError(caught instanceof Error ? caught.message : "Your answer could not be scored.");
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    setIsLoading(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  const requestHint = async () => {
-    if (isLoading) return;
-
-    const hintMessages: OralMessage[] = [
-      ...messages,
-      { role: "user", content: "HINT_REQUESTED" },
-    ];
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: "Hint requested" },
-    ]);
-    setError("");
+  async function markUnknown() {
+    if (!currentQuestion || isLoading) return;
     setIsLoading(true);
-
-    try {
-      const data = await callExaminer(hintMessages, sessionKey);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply },
-      ]);
-      setQuestionsCompleted(data.questionNumber);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "A hint could not be generated.");
-    }
-
-    setIsLoading(false);
-  };
-
-  const resetSession = () => {
-    sessionStorage.removeItem("oral_session");
-    setMessages([]);
-    setInput("");
     setError("");
+    try {
+      const data = await postExam({ action: "unknown", mode, sessionKey, questionId: currentQuestion.id });
+      await recordEvaluation(data.evaluation as OralEvaluation, "I don't know");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "The answer could not be recorded.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function continueAfterFeedback() {
+    setFeedbackVisible(false);
+  }
+
+  function resetSession() {
+    sessionStorage.removeItem("oral_session_v2");
+    setScreen("select");
+    setQuestions([]);
+    setEntries([]);
     setAssessment(null);
     setSessionKey("");
-    setQuestionsCompleted(0);
-    setScreen("select");
-  };
+    setInput("");
+    setOriginalAnswer(null);
+    setFollowUpQuestion(null);
+    setFeedbackVisible(false);
+    setError("");
+  }
 
   if (screen === "select") {
     return (
-      <div className="p-8 max-w-4xl mx-auto">
-        <div className="mb-7">
-          <h1 className="text-2xl font-bold text-slate-900">Mock Oral AI DPE</h1>
-          <p className="text-slate-500 mt-0.5 text-sm">Select a practice mode and session length to begin.</p>
+      <div className="mx-auto min-h-screen max-w-5xl px-5 py-8 sm:px-8">
+        <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-950">
+          <ArrowLeft size={16} /> Dashboard
+        </Link>
+        <div className="mt-8 max-w-2xl">
+          <p className="text-xs font-bold uppercase text-slate-500">FAA-S-ACS-6C practice</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-950">AI oral examiner</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+            Rehearse scenario-based questions mapped to the Private Pilot Airplane ACS. Your answers are scored against a defined rubric and used to focus future sessions.
+          </p>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-slate-200 w-full max-w-2xl">
+        <div className="mt-8 grid gap-3 md:grid-cols-3">
+          {(Object.keys(modeInfo) as OralMode[]).map((option) => {
+            const selected = option === mode;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setMode(option)}
+                className={`min-h-40 rounded-lg border p-5 text-left transition ${selected ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-900 hover:border-slate-400"}`}
+              >
+                <span className="flex items-center justify-between text-sm font-bold">
+                  {modeInfo[option].label}
+                  {selected && <Check size={17} />}
+                </span>
+                <span className={`mt-3 block text-sm leading-6 ${selected ? "text-slate-300" : "text-slate-500"}`}>{modeInfo[option].description}</span>
+              </button>
+            );
+          })}
+        </div>
 
-          <div className="flex flex-col space-y-2.5 mb-7">
-            {(Object.keys(modeInfo) as OralMode[]).map((m) => {
-              const mi = modeInfo[m];
-              const isSelected = mode === m;
-              return (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`p-4 border-2 rounded-xl text-left transition-all ${
-                    isSelected
-                      ? `${mi.bgActive} border-transparent`
-                      : "border-slate-200 hover:border-slate-300 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className={`font-semibold text-sm ${isSelected ? "text-white" : "text-slate-800"}`}>
-                      {mi.label}
-                    </span>
-                    {isSelected && (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8L6.5 11.5L13 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    )}
-                  </div>
-                  <p className={`text-xs leading-relaxed ${isSelected ? "text-white/85" : "text-slate-500"}`}>
-                    {mi.description}
-                  </p>
-                </button>
-              );
-            })}
+        <div className="mt-6 max-w-2xl rounded-lg border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="question-count" className="text-sm font-bold text-slate-800">Session length</label>
+            <span className="text-sm font-bold text-slate-950">{questionCount} questions</span>
           </div>
-
-          {/* Question Count Slider */}
-          <div className="mb-7">
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-sm font-medium text-slate-700">Number of Questions</label>
-              <span className="text-sm font-semibold text-indigo-600">{questionCount}</span>
-            </div>
-            <input
-              type="range"
-              min={5}
-              max={30}
-              step={1}
-              value={questionCount}
-              onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="w-full accent-indigo-600"
-            />
-            <div className="flex justify-between text-xs text-slate-400 mt-1">
-              <span>5</span>
-              <span>30</span>
-            </div>
-          </div>
-
-          <button
-            onClick={startSession}
-            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition text-sm"
-          >
-            Begin Oral Examination
+          <input id="question-count" type="range" min="5" max="30" value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))} className="mt-4 w-full accent-slate-950" />
+          <button type="button" onClick={startSession} disabled={isLoading} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+            {isLoading ? "Preparing your ACS session..." : "Begin oral practice"}<ChevronRight size={17} />
           </button>
-          {error && <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {error && <p role="alert" className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
         </div>
       </div>
     );
@@ -310,127 +298,99 @@ function OralPageContent() {
 
   if (screen === "results" && assessment) {
     return (
-      <div className="mx-auto max-w-5xl p-8">
+      <div className="mx-auto min-h-screen max-w-5xl px-5 py-8 sm:px-8">
         <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{aircraftModel} - FAA-S-ACS-6C</p>
+            <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-950"><ArrowLeft size={16} /> Dashboard</Link>
+            <p className="mt-6 text-xs font-bold uppercase text-slate-500">{aircraftModel} · FAA-S-ACS-6C</p>
             <h1 className="mt-2 text-2xl font-bold text-slate-950">Oral practice scorecard</h1>
           </div>
-          <button onClick={resetSession} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Start another session</button>
+          <button type="button" onClick={resetSession} className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800">Start another session</button>
         </div>
         <AssessmentCard assessment={assessment} />
       </div>
     );
   }
 
+  if (!currentQuestion) return null;
+
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
-
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3.5 shrink-0">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-sm font-semibold text-slate-900">Mock Oral AI DPE</h1>
-              <p className="text-xs text-slate-400">{aircraftModel} - Private Pilot ACS - {questionsCompleted}/{questionCount} complete</p>
+    <div className="flex min-h-screen flex-col bg-slate-50">
+      <header className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Link href="/dashboard" aria-label="Return to dashboard" title="Dashboard" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-950"><ArrowLeft size={18} /></Link>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-slate-950">AI oral examiner</p>
+              <p className="truncate text-xs text-slate-500">{aircraftModel} · {modeInfo[mode].label}</p>
             </div>
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${modeInfo[mode].badgeStyle}`}>
-              {modeInfo[mode].label}
-            </span>
           </div>
-          <button
-            onClick={resetSession}
-            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition px-3 py-1.5 rounded-lg hover:bg-slate-100"
-          >
-            End Session
-          </button>
+          <button type="button" onClick={resetSession} className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-950" aria-label="End session" title="End session"><X size={18} /></button>
         </div>
-      </div>
+      </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-7 px-4">
-        <div className="max-w-3xl mx-auto space-y-5">
-          {messages
-            .filter((msg) => msg.content !== "Begin the oral examination.")
-            .map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-2xl w-full">
-                  <p className={`text-xs font-medium mb-1.5 ${msg.role === "user" ? "text-right text-slate-400" : "text-left text-indigo-600"}`}>
-                    {msg.role === "user" ? "You" : "Examiner"}
-                  </p>
-                  <div className={`px-4 py-3.5 rounded-xl text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-indigo-600 text-white ml-auto rounded-tr-sm"
-                      : "bg-white text-slate-800 border border-slate-200 rounded-tl-sm"
-                  }`}>
-                    {msg.content}
-                  </div>
-                </div>
-              </div>
-            ))}
+      <div className="h-1 bg-slate-200"><div className="h-full bg-slate-950 transition-all" style={{ width: `${progress}%` }} /></div>
 
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="max-w-2xl w-full">
-                <p className="text-xs font-medium mb-1.5 text-indigo-600">Examiner</p>
-                <div className="bg-white border border-slate-200 rounded-xl rounded-tl-sm px-4 py-3.5 inline-block">
-                  <div className="flex gap-1 items-center h-4">
-                    <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-1.5 h-1.5 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              </div>
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-10">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="rounded-md bg-slate-950 px-2 py-1 text-xs font-bold text-white">{currentQuestion.acsCode}</span>
+            <span className="text-xs font-semibold text-slate-500">{currentQuestion.topic}</span>
+          </div>
+          <span className="text-xs font-semibold text-slate-500">Question {entries.length + 1} of {questions.length}</span>
+        </div>
+
+        <section className="mt-5 border-y border-slate-200 py-7 sm:py-9" aria-labelledby="oral-question">
+          <p className="text-xs font-bold uppercase text-slate-500">Examiner</p>
+          <h1 id="oral-question" className="mt-3 max-w-3xl text-xl font-semibold leading-8 text-slate-950 sm:text-2xl sm:leading-9">
+            {followUpQuestion ?? currentQuestion.prompt}
+          </h1>
+          {followUpQuestion && <p className="mt-4 text-sm leading-6 text-slate-500">Your original answer: {originalAnswer}</p>}
+          {hintVisible && !followUpQuestion && (
+            <div className="mt-5 flex max-w-2xl gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <Lightbulb className="mt-0.5 shrink-0" size={17} /><p><strong>Think about:</strong> {currentQuestion.hint}</p>
             </div>
           )}
-          <div ref={bottomRef} />
-          {error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}
-        </div>
-      </div>
+        </section>
 
-      {/* Input */}
-      <div className="bg-white border-t border-slate-200 px-4 py-3.5 shrink-0">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex gap-2.5 items-end">
-            {mode !== "checkride" && (
-              <button
-                onClick={requestHint}
-                disabled={isLoading}
-                className="bg-slate-100 text-slate-600 font-medium px-4 py-2.5 rounded-xl hover:bg-slate-200 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm border border-slate-200"
-              >
-                Hint
-              </button>
-            )}
+        {shownFeedback ? (
+          <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5" aria-live="polite">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold text-slate-950">{verdictLabel(shownFeedback.verdict)}</p>
+              <span className="text-sm font-bold text-slate-700">{shownFeedback.score}/100</span>
+            </div>
+            <p className="mt-2 text-sm leading-6 text-slate-600">{shownFeedback.feedback}</p>
+            {shownFeedback.missing.length > 0 && <p className="mt-3 text-xs leading-5 text-slate-500"><strong className="text-slate-700">Study next:</strong> {shownFeedback.missing[0]}</p>}
+            <button type="button" onClick={continueAfterFeedback} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800">Next question <ChevronRight size={16} /></button>
+          </section>
+        ) : (
+          <div className="mt-auto pt-8">
+            <label htmlFor="oral-answer" className="text-sm font-bold text-slate-800">Your answer</label>
             <textarea
+              id="oral-answer"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your answer... (Enter to send, Shift+Enter for new line)"
-              rows={2}
-              className="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-400 transition"
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submitAnswer(); } }}
+              rows={4}
+              placeholder="Explain your decision and reasoning..."
+              className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-950 focus:ring-2 focus:ring-slate-200"
             />
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() || isLoading}
-              className="bg-slate-950 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0 text-sm"
-            >
-              Send
-            </button>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-2">
+                {mode !== "checkride" && !followUpQuestion && <button type="button" onClick={() => setHintVisible(true)} disabled={hintVisible || isLoading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"><Lightbulb size={16} /> Hint</button>}
+                <button type="button" onClick={markUnknown} disabled={isLoading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"><CircleHelp size={16} /> I don&apos;t know</button>
+              </div>
+              <button type="button" onClick={submitAnswer} disabled={!input.trim() || isLoading} className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">{isLoading ? "Scoring..." : "Submit answer"}<Send size={16} /></button>
+            </div>
+            {error && <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</p>}
+            <p className="mt-5 text-center text-xs text-slate-400">Practice only. Verify aircraft-specific information with the applicable POH or AFM.</p>
           </div>
-          <p className="text-xs text-slate-400 text-center mt-2.5">
-            Practice tool only. Always verify with official FAA publications.
-          </p>
-        </div>
-      </div>
-
+        )}
+      </main>
     </div>
   );
 }
 
 export default function OralPage() {
-  return (
-    <ProtectedAppShell>
-      <OralPageContent />
-    </ProtectedAppShell>
-  );
+  return <ProtectedAppShell focus><OralPageContent /></ProtectedAppShell>;
 }
