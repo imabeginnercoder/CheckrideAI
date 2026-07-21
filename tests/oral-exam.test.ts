@@ -54,6 +54,23 @@ test("assessment is derived consistently from structured evaluations", () => {
   assert.equal(assessment.areasToReview[0]?.acsCode, "PA.I.G.K1e");
 });
 
+test("unscored service failures do not lower readiness", () => {
+  const scored: OralEvaluation = {
+    questionId: "weather-go-no-go", acsArea: "Weather Information", acsCode: "PA.I.C.R1",
+    topic: "Weather decision-making", reference: "FAA-S-ACS-6C PA.I.C.R1", answer: "Set diversion triggers.",
+    score: 90, verdict: "strong", feedback: "Sound decision-making.", demonstrated: ["Applied personal minimums"],
+    missing: [], needsFollowUp: false, followUpQuestion: null, scored: true,
+  };
+  const unavailable: OralEvaluation = {
+    ...scored, questionId: "aircraft-documents", acsArea: "Airworthiness Requirements",
+    acsCode: "PA.I.B.K1a", score: 0, scored: false,
+  };
+
+  const assessment = buildAssessmentFromEvaluations([scored, unavailable]);
+  assert.equal(assessment.overallScore, 90);
+  assert.match(assessment.summary, /1 were scored/);
+});
+
 test("Haiku cost estimate accounts for cheaper cache reads", () => {
   assert.equal(estimateHaikuCostMicrousd(1_000, 500), 3_500);
   assert.equal(estimateHaikuCostMicrousd(0, 0, 1_000, 1_000), 1_350);

@@ -139,6 +139,7 @@ export async function POST(request: Request) {
         missing: ["No answer was provided for this knowledge or risk-management scenario."],
         needsFollowUp: false,
         followUpQuestion: null,
+        scored: true,
       },
       aircraftModel,
       usage: null,
@@ -167,7 +168,7 @@ export async function POST(request: Request) {
   try {
     const response = await anthropic.messages.parse({
       model: ORAL_MODEL,
-      max_tokens: 600,
+      max_tokens: 900,
       system: buildEvaluationSystemPrompt(parsed.data.mode, aircraftModel),
       messages: [{
         role: "user",
@@ -190,6 +191,7 @@ export async function POST(request: Request) {
       answer: parsed.data.previousAnswer
         ? `${parsed.data.previousAnswer}\nFollow-up: ${parsed.data.answer}`
         : parsed.data.answer,
+      scored: true,
     };
     const inputTokens = response.usage.input_tokens;
     const outputTokens = response.usage.output_tokens;
@@ -217,7 +219,17 @@ export async function POST(request: Request) {
       usage: { inputTokens, outputTokens, estimatedCostMicrousd },
     });
   } catch (error) {
-    console.error("AI oral answer evaluation failed", error);
-    return NextResponse.json({ error: "The examiner could not score that answer. Your session is still saved." }, { status: 502 });
+    const apiError = error instanceof Anthropic.APIError ? error : null;
+    console.error("AI oral answer evaluation failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      message: error instanceof Error ? error.message : String(error),
+      status: apiError?.status,
+      requestId: apiError?.requestID,
+    });
+    return NextResponse.json({
+      error: "Scoring is temporarily unavailable. Your answer is still here; retry or continue without a score.",
+      code: "SCORING_UNAVAILABLE",
+      retryable: true,
+    }, { status: 503 });
   }
 }

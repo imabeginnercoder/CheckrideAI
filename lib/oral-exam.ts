@@ -38,8 +38,8 @@ export const modelEvaluationSchema = z.object({
   score: z.number().int().min(0).max(100),
   verdict: z.enum(["strong", "acceptable", "partial", "incorrect"]),
   feedback: z.string().max(420),
-  demonstrated: z.array(z.string().max(160)).max(4),
-  missing: z.array(z.string().max(160)).max(4),
+  demonstrated: z.array(z.string().max(120)).max(2),
+  missing: z.array(z.string().max(120)).max(2),
   needsFollowUp: z.boolean(),
   followUpQuestion: z.string().max(400).nullable(),
 });
@@ -51,6 +51,7 @@ export const oralEvaluationSchema = modelEvaluationSchema.extend({
   topic: z.string(),
   reference: z.string(),
   answer: z.string(),
+  scored: z.boolean().optional(),
 });
 
 export const reviewAreaSchema = z.object({
@@ -89,12 +90,13 @@ The student's aircraft is ${aircraftModel}. Never invent model-specific limitati
 
 ${feedbackRule}
 
-Use a follow-up only when one short question could resolve a partially complete answer. Never request a second follow-up. Keep feedback under 70 words and the follow-up to one sentence. Do not use Markdown.`;
+Use a follow-up only when one short question could resolve a partially complete answer. If the score is 75 or higher, do not request a follow-up. Never request a second follow-up. Keep feedback under 55 words. Return at most two demonstrated points and two missing points, each under 12 words. Keep the follow-up to one sentence. Do not use Markdown.`;
 }
 
 export function buildAssessmentFromEvaluations(evaluations: OralEvaluation[]): OralAssessment {
-  const overallScore = evaluations.length
-    ? Math.round(evaluations.reduce((sum, item) => sum + item.score, 0) / evaluations.length)
+  const scoredEvaluations = evaluations.filter((item) => item.scored !== false);
+  const overallScore = scoredEvaluations.length
+    ? Math.round(scoredEvaluations.reduce((sum, item) => sum + item.score, 0) / scoredEvaluations.length)
     : 0;
   const readiness = overallScore >= 90
     ? "checkride-ready"
@@ -105,7 +107,7 @@ export function buildAssessmentFromEvaluations(evaluations: OralEvaluation[]): O
         : "building-foundation";
 
   const byArea = new Map<string, OralEvaluation[]>();
-  for (const evaluation of evaluations) {
+  for (const evaluation of scoredEvaluations) {
     const items = byArea.get(evaluation.acsArea) ?? [];
     items.push(evaluation);
     byArea.set(evaluation.acsArea, items);
@@ -140,7 +142,9 @@ export function buildAssessmentFromEvaluations(evaluations: OralEvaluation[]): O
   return {
     overallScore,
     readiness,
-    summary: `You completed ${evaluations.length} ACS-mapped questions with an overall practice-readiness score of ${overallScore}%.`,
+    summary: scoredEvaluations.length === evaluations.length
+      ? `You completed ${evaluations.length} ACS-mapped questions with an overall practice-readiness score of ${overallScore}%.`
+      : `You completed ${evaluations.length} ACS-mapped questions. ${scoredEvaluations.length} were scored, with an overall practice-readiness score of ${overallScore}%.`,
     strengths,
     areasToReview,
   };

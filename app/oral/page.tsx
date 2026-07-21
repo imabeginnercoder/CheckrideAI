@@ -77,6 +77,7 @@ function OralPageContent() {
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [scoringFailed, setScoringFailed] = useState(false);
   const [restored, setRestored] = useState(false);
 
   const currentQuestion = questions[entries.length];
@@ -131,6 +132,7 @@ function OralPageContent() {
     const nextSessionKey = crypto.randomUUID();
     setIsLoading(true);
     setError("");
+    setScoringFailed(false);
     try {
       const data = await postExam({ action: "start", mode, questionCount, sessionKey: nextSessionKey });
       setSessionKey(nextSessionKey);
@@ -163,7 +165,7 @@ function OralPageContent() {
     if (saveError) throw saveError;
   }
 
-  async function recordEvaluation(evaluation: OralEvaluation, displayedAnswer: string) {
+  async function recordEvaluation(evaluation: OralEvaluation, displayedAnswer: string, showFeedback = true) {
     if (!currentQuestion) return;
     const finalEntries = [...entries, { question: currentQuestion, answer: displayedAnswer, evaluation }];
     setEntries(finalEntries);
@@ -180,7 +182,7 @@ function OralPageContent() {
       return;
     }
 
-    setFeedbackVisible(mode !== "checkride");
+    setFeedbackVisible(showFeedback && mode !== "checkride");
   }
 
   async function submitAnswer() {
@@ -188,6 +190,7 @@ function OralPageContent() {
     if (!answer || !currentQuestion || isLoading) return;
     setIsLoading(true);
     setError("");
+    setScoringFailed(false);
     try {
       const data = await postExam({
         action: "evaluate",
@@ -210,6 +213,7 @@ function OralPageContent() {
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Your answer could not be scored.");
+      setScoringFailed(true);
     } finally {
       setIsLoading(false);
     }
@@ -229,8 +233,33 @@ function OralPageContent() {
     }
   }
 
+  async function continueWithoutScore() {
+    const answer = input.trim();
+    if (!answer || !currentQuestion || isLoading) return;
+    const displayedAnswer = originalAnswer ? `${originalAnswer}\nFollow-up: ${answer}` : answer;
+    setError("");
+    setScoringFailed(false);
+    await recordEvaluation({
+      questionId: currentQuestion.id,
+      acsArea: currentQuestion.acsArea,
+      acsCode: currentQuestion.acsCode,
+      topic: currentQuestion.topic,
+      reference: currentQuestion.reference,
+      answer: displayedAnswer,
+      score: 0,
+      verdict: "partial",
+      feedback: "This answer was not scored because the scoring service was unavailable.",
+      demonstrated: [],
+      missing: [],
+      needsFollowUp: false,
+      followUpQuestion: null,
+      scored: false,
+    }, displayedAnswer, false);
+  }
+
   function continueAfterFeedback() {
     setFeedbackVisible(false);
+    setScoringFailed(false);
   }
 
   function resetSession() {
@@ -380,9 +409,18 @@ function OralPageContent() {
                 {mode !== "checkride" && !followUpQuestion && <button type="button" onClick={() => setHintVisible(true)} disabled={hintVisible || isLoading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"><Lightbulb size={16} /> Hint</button>}
                 <button type="button" onClick={markUnknown} disabled={isLoading} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"><CircleHelp size={16} /> I don&apos;t know</button>
               </div>
-              <button type="button" onClick={submitAnswer} disabled={!input.trim() || isLoading} className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">{isLoading ? "Scoring..." : "Submit answer"}<Send size={16} /></button>
+              <button type="button" onClick={submitAnswer} disabled={!input.trim() || isLoading} className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40">{isLoading ? "Scoring..." : scoringFailed ? "Retry scoring" : "Submit answer"}<Send size={16} /></button>
             </div>
-            {error && <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</p>}
+            {error && (
+              <div role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                <p className="font-medium">{error}</p>
+                {scoringFailed && (
+                  <button type="button" onClick={continueWithoutScore} className="mt-3 rounded-md border border-rose-300 bg-white px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100">
+                    Continue without score
+                  </button>
+                )}
+              </div>
+            )}
             <p className="mt-5 text-center text-xs text-slate-400">Practice only. Verify aircraft-specific information with the applicable POH or AFM.</p>
           </div>
         )}
