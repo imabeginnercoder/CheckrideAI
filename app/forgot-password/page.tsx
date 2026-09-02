@@ -33,7 +33,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7f8f6] p-6">
-      <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8">
+      <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8">
         <Link href="/login" className="text-sm font-medium text-slate-500 hover:text-slate-950">Back to sign in</Link>
         <h1 className="mt-6 text-2xl font-bold text-slate-950">Reset your password</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Enter the email on your account. We will send a one-time reset link.</p>

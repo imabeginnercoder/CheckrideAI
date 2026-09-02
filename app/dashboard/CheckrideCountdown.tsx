@@ -23,7 +23,7 @@ export default function CheckrideCountdown({ userId }: { userId: string }) {
   const days = daysUntilDate(date);
 
   return (
-    <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4">
+    <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-400">Study configuration</p>
         <p className="mt-1 text-sm font-semibold text-slate-900">{aircraft}</p>

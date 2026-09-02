@@ -1,195 +1,160 @@
 import Link from "next/link";
+import LegalFooter from "./components/LegalFooter";
 
 const features = [
   {
-    label: "Focused practice sets",
-    detail: "Pick the categories that need work and build a study session around them.",
-    icon: "M4 8L7 11L12 5",
+    number: "01",
+    label: "Focused practice",
+    detail: "Build a question set around the knowledge categories that need attention, with immediate explanations after each answer.",
+    proof: "5 to 100 questions",
   },
   {
-    label: "Practice exams",
-    detail: "Run a broader review, then see what you missed by category.",
-    icon: "M4 4H12M4 8H10M4 12H8",
+    number: "02",
+    label: "Written exam rehearsal",
+    detail: "Work through a timed 60-question session with question navigation, flags, and category-level results after submission.",
+    proof: "FAA-style test flow",
   },
   {
+    number: "03",
     label: "AI oral examiner",
-    detail: "Rehearse oral exam questions with a realistic chatbot DPE and get instant session summaries.",
-    icon: "M3 5H13M5 9H11M7 13H9",
+    detail: "Respond to aircraft-aware scenarios mapped to the Private Pilot ACS and receive a structured session scorecard.",
+    proof: "FAA-S-ACS-6C mapped",
   },
   {
-    label: "Progress dashboard",
-    detail: "Watch score trends, category mastery, and suggested review areas update as you practice.",
-    icon: "M3 12L6 8L9 10L13 4",
+    number: "04",
+    label: "A study plan that adjusts",
+    detail: "See score movement, category mastery, and a spaced-repetition queue built from your saved performance.",
+    proof: "Per-user history",
   },
 ];
 
 function LogoMark() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-white">
+      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-950 text-white">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
           <path d="M9 2L15 5.5V12.5L9 16L3 12.5V5.5L9 2Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
           <path d="M9 5.5V12.5M5.8 9H12.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       </div>
-      <div>
-        <p className="text-sm font-bold tracking-tight text-slate-950">CheckrideAI</p>
-        <p className="text-xs font-medium text-slate-500">Private pilot prep</p>
+      <div className="min-w-0">
+        <p className="text-sm font-bold text-slate-950">CheckrideAI</p>
+        <p className="hidden text-xs font-medium text-slate-500 sm:block">Private pilot prep</p>
       </div>
     </div>
   );
 }
 
-function HeroPreview() {
+function ProductPreview() {
   return (
-    <div className="relative rounded-2xl border border-slate-200 bg-white p-4">
-      <div className="absolute inset-0 rounded-2xl bg-[linear-gradient(90deg,rgba(15,23,42,0.035)_1px,transparent_1px),linear-gradient(rgba(15,23,42,0.035)_1px,transparent_1px)] bg-[size:28px_28px]" />
-      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-950 text-white">
-        <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Study picture</p>
-            <p className="mt-1 text-sm font-semibold">Today&apos;s flight plan</p>
+    <section aria-label="CheckrideAI product preview" className="border-y border-slate-800 bg-slate-950 text-white">
+      <div className="mx-auto grid max-w-6xl lg:grid-cols-[0.72fr_1.28fr]">
+        <div className="border-b border-white/10 px-6 py-7 lg:border-b-0 lg:border-r">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Today&apos;s plan</p>
+              <p className="mt-2 text-lg font-semibold">Weather and cross-country</p>
+            </div>
+            <span className="rounded-md bg-emerald-950 px-2.5 py-1 text-xs font-semibold text-emerald-300">VFR</span>
           </div>
-          <span className="rounded-md bg-emerald-400/10 px-2.5 py-1 text-xs font-semibold text-emerald-300">VFR</span>
+          <dl className="mt-8 grid grid-cols-3 gap-4 border-t border-white/10 pt-5">
+            <div><dt className="text-xs text-slate-500">Practice</dt><dd className="mt-1 text-xl font-bold">78%</dd></div>
+            <div><dt className="text-xs text-slate-500">Exam</dt><dd className="mt-1 text-xl font-bold">74%</dd></div>
+            <div><dt className="text-xs text-slate-500">Due</dt><dd className="mt-1 text-xl font-bold">3 areas</dd></div>
+          </dl>
         </div>
-        <div className="grid gap-4 p-5 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm font-semibold">Category mastery</p>
-              <span className="text-xs text-slate-400">ACS review</span>
+
+        <div className="grid md:grid-cols-2">
+          <div className="border-b border-white/10 px-6 py-7 md:border-b-0 md:border-r">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Category mastery</p>
+            <div className="mt-5 space-y-4">
+              {[
+                ["Weather", "74%"],
+                ["Navigation", "82%"],
+                ["Regulations", "68%"],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <div className="mb-1.5 flex items-center justify-between text-xs">
+                    <span className="text-slate-300">{label}</span>
+                    <span className="font-semibold">{value}</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-emerald-400" style={{ width: value }} />
+                  </div>
+                </div>
+              ))}
             </div>
-            {[
-              ["Weather", "74%"],
-              ["Navigation", "82%"],
-              ["Regulations", "68%"],
-            ].map(([label, value]) => (
-              <div key={label} className="mb-3 last:mb-0">
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="text-slate-300">{label}</span>
-                  <span className="font-semibold text-white">{value}</span>
-                </div>
-                <div className="h-2 rounded-full bg-white/10">
-                  <div className="h-2 rounded-full bg-white" style={{ width: value }} />
-                </div>
-              </div>
-            ))}
           </div>
-          <div className="space-y-3">
-            <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">AI DPE</p>
-              <p className="mt-2 text-sm leading-6 text-slate-200">
-                Tell me how you would evaluate ceilings and visibility before a short cross-country.
-              </p>
-            </div>
-            <div className="rounded-lg border border-amber-300/20 bg-amber-300/10 p-4">
-              <p className="text-xs font-semibold text-amber-200">Suggested next</p>
-              <p className="mt-1 text-sm text-white">Review weather minimums, then run a 15-question set.</p>
+
+          <div className="px-6 py-7">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">AI oral examiner</p>
+            <p className="mt-5 text-base font-medium leading-7 text-slate-100">
+              Tell me how you would evaluate ceilings and visibility before a short cross-country in your aircraft.
+            </p>
+            <div className="mt-6 border-t border-white/10 pt-4">
+              <p className="text-xs font-semibold text-emerald-300">Suggested next session</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">Review weather minimums, then run a 15-question focused set.</p>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-[#f7f8f6] text-slate-950">
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(25deg,rgba(15,23,42,0.05)_1px,transparent_1px)] bg-[size:70px_70px]" />
-        <div className="absolute left-1/2 top-0 h-full w-px bg-slate-950/10" />
-        <div className="relative mx-auto max-w-6xl px-6 py-6">
+    <main className="min-h-screen bg-slate-100 text-slate-950">
+      <section>
+        <div className="mx-auto max-w-6xl px-6 py-6">
           <nav className="flex items-center justify-between">
             <LogoMark />
-            <div className="flex items-center gap-3">
-              <Link href="/login" className="text-sm font-semibold text-slate-600 transition hover:text-slate-950">
-                Sign in
-              </Link>
-              <Link
-                href="/login?mode=signup"
-                className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Create account
-              </Link>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Link href="/login" className="whitespace-nowrap text-sm font-semibold text-slate-600 transition-colors hover:text-slate-950">Sign in</Link>
+              <Link href="/login?mode=signup" className="whitespace-nowrap rounded-md bg-slate-950 px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 sm:px-4">Create account</Link>
             </div>
           </nav>
 
-          <div className="grid min-h-[calc(100vh-88px)] items-center gap-12 py-16 lg:grid-cols-[0.95fr_1.05fr]">
-            <div>
-              <div className="mb-6 flex flex-wrap gap-2">
-                {["PPL", "ACS", "DPE", "Written"].map((chip) => (
-                  <span key={chip} className="rounded-md border border-slate-300 bg-white/60 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                    {chip}
-                  </span>
-                ))}
-              </div>
-              <h1 className="max-w-3xl text-5xl font-bold leading-[1.02] tracking-tight text-slate-950 md:text-6xl">
-                Private Pilot Prep Designed for You.
-              </h1>
-              <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
-                CheckrideAI helps student pilots practice FAA-style questions, rehearse oral exam scenarios, and track category mastery so every study session has a clear next step.
-              </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/login?mode=signup"
-                  className="inline-flex items-center justify-center rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                >
-                  Create account
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-950"
-                >
-                  Sign in
-                </Link>
-              </div>
-              <p className="mt-5 text-sm text-slate-500">
-                Built for students preparing for the oral and written portions of the private pilot checkride.
-              </p>
+          <div className="max-w-4xl py-16 md:py-20">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">Written and oral checkride preparation</p>
+            <h1 className="mt-5 max-w-3xl text-5xl font-bold leading-[1.04] text-slate-950 md:text-6xl">Private Pilot Prep Designed for You.</h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
+              Practice FAA-style questions, rehearse oral scenarios with an adaptive examiner, and use your results to decide what deserves another pass.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/login?mode=signup" className="inline-flex items-center justify-center rounded-md bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-800">Start studying</Link>
+              <Link href="/login" className="inline-flex items-center justify-center rounded-md border border-slate-400 px-5 py-3 text-sm font-semibold text-slate-900 transition-colors hover:border-slate-950">Sign in</Link>
             </div>
-
-            <HeroPreview />
           </div>
         </div>
+        <ProductPreview />
       </section>
 
-      <section className="border-y border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-4 px-6 py-16 md:grid-cols-4">
-          {features.map((feature) => (
-            <div key={feature.label} className="rounded-xl border border-slate-200 bg-white p-5">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-950">
-                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d={feature.icon} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <h2 className="text-sm font-bold text-slate-950">{feature.label}</h2>
-              <p className="mt-3 text-sm leading-6 text-slate-500">{feature.detail}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-[#f7f8f6]">
-        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-16 md:grid-cols-[0.8fr_1.2fr]">
+      <section className="border-b border-slate-300">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <div className="grid gap-6 border-b border-slate-300 pb-8 md:grid-cols-[0.72fr_1.28fr]">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">What you can do</p>
+            <h2 className="max-w-2xl text-3xl font-bold leading-tight">One record of your preparation, from the first practice set through the oral rehearsal.</h2>
+          </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Study flow</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950">A calmer way to know what to study next.</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[
-              ["Preflight", "Choose the categories that need attention."],
-              ["Departure", "Complete a focused set or full practice exam."],
-              ["Cruise", "Review score movement and mastery by category."],
-              ["Approach", "Rehearse oral questions with the AI DPE."],
-            ].map(([step, detail]) => (
-              <div key={step} className="border-l border-slate-300 pl-4">
-                <p className="text-sm font-bold text-slate-950">{step}</p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">{detail}</p>
-              </div>
+            {features.map((feature) => (
+              <article key={feature.number} className="grid gap-4 border-b border-slate-300 py-7 md:grid-cols-[0.18fr_0.55fr_1.27fr] md:items-start">
+                <span className="text-xs font-bold text-emerald-800">{feature.number}</span>
+                <div>
+                  <h3 className="text-base font-bold">{feature.label}</h3>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{feature.proof}</p>
+                </div>
+                <p className="max-w-2xl text-sm leading-7 text-slate-600">{feature.detail}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
+
+      <div className="mx-auto flex max-w-6xl flex-col justify-between gap-6 px-6 py-8 sm:flex-row sm:items-center">
+        <p className="max-w-xl text-sm leading-6 text-slate-600">Independent practice for student pilots. Always verify operational and aircraft-specific information with current FAA sources and the applicable POH or AFM.</p>
+        <LegalFooter />
+      </div>
     </main>
   );
 }

@@ -129,7 +129,7 @@ function ExamPageContent() {
           <p className="text-slate-500 mt-0.5 text-sm">Start a timed 60-question practice test.</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 w-full max-w-2xl p-6">
+        <div className="bg-white rounded-lg border border-slate-200 w-full max-w-2xl p-6">
 
           <div className="space-y-3 mb-7">
             {[
@@ -152,7 +152,7 @@ function ExamPageContent() {
           <button
             onClick={startExam}
             disabled={loading}
-            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition disabled:opacity-50 text-sm"
+            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-lg hover:bg-slate-800 transition disabled:opacity-50 text-sm"
           >
             {loading ? "Loading questions..." : "Begin Examination"}
           </button>
@@ -179,7 +179,7 @@ function ExamPageContent() {
           <p className="text-slate-500 mt-0.5 text-sm">Review your practice exam performance.</p>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 w-full max-w-2xl p-8">
+        <div className="bg-white rounded-lg border border-slate-200 w-full max-w-2xl p-8">
           <div className={`text-center pb-6 mb-6 border-b border-slate-100`}>
             <span className={`inline-block text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-4 ${passed ? "bg-green-50 text-green-700" : "bg-rose-50 text-rose-700"}`}>
               {passed ? "PASS" : "NOT PASSING"}
@@ -227,13 +227,13 @@ function ExamPageContent() {
           <div className="flex gap-3">
             <button
               onClick={() => { setScreen("intro"); setAnswers({}); setQuestions([]); }}
-              className="flex-1 border border-slate-200 text-slate-700 font-medium py-2.5 rounded-xl hover:bg-slate-50 transition text-sm"
+              className="flex-1 border border-slate-200 text-slate-700 font-medium py-2.5 rounded-lg hover:bg-slate-50 transition text-sm"
             >
               Back
             </button>
             <button
               onClick={startExam}
-              className="flex-1 bg-slate-950 text-white font-semibold py-2.5 rounded-xl hover:bg-slate-800 transition text-sm"
+              className="flex-1 bg-slate-950 text-white font-semibold py-2.5 rounded-lg hover:bg-slate-800 transition text-sm"
             >
               Retake Exam
             </button>
@@ -282,11 +282,11 @@ function ExamPageContent() {
                 <button
                   key={i}
                   onClick={() => setCurrentIndex(i)}
-                  className={`relative aspect-square rounded-md text-xs font-semibold transition-all ${
+                  className={`relative aspect-square rounded-md text-xs font-semibold transition-colors ${
                     isCurrent
-                      ? "bg-indigo-600 text-white"
+                      ? "bg-emerald-700 text-white"
                       : answered
-                      ? "bg-indigo-100 text-indigo-700"
+                      ? "bg-emerald-100 text-emerald-800"
                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                   }`}
                 >
@@ -325,7 +325,7 @@ function ExamPageContent() {
             <div className="flex items-center gap-3">
             <button
               onClick={() => toggleFlag(currentIndex)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium transition ${
                 flagged.has(currentIndex)
                   ? "border-amber-400 bg-amber-50 text-amber-700"
                   : "border-slate-200 bg-slate-50 text-slate-500 hover:border-amber-300 hover:text-amber-600"
@@ -336,7 +336,7 @@ function ExamPageContent() {
               </svg>
               {flagged.has(currentIndex) ? "Flagged" : "Flag"}
             </button>
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${timerWarning ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${timerWarning ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className={timerWarning ? "text-rose-500" : "text-slate-400"}>
                 <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.4"/>
                 <path d="M7 4V7L9 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
@@ -353,7 +353,7 @@ function ExamPageContent() {
         <div className="flex-1 overflow-y-auto p-8">
           <div className="max-w-2xl mx-auto">
             <div className="mb-2">
-              <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">{question?.category}</span>
+              <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">{question?.category}</span>
             </div>
 
             {question?.image_url && (
@@ -364,7 +364,7 @@ function ExamPageContent() {
                   width={900}
                   height={500}
                   unoptimized
-                  className="rounded-xl border border-slate-200 max-w-full max-h-72 object-contain"
+                  className="rounded-lg border border-slate-200 max-w-full max-h-72 object-contain"
                 />
               </div>
             )}
@@ -382,12 +382,12 @@ function ExamPageContent() {
                     key={opt}
                     onClick={() => handleAnswer(opt)}
                     disabled={answers[currentIndex] !== undefined}
-                    className={`w-full p-4 border-2 rounded-xl text-left transition-all text-sm ${
+                    className={`w-full p-4 border-2 rounded-lg text-left transition-colors text-sm ${
                       isSelected
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-900"
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-950"
                         : answers[currentIndex] !== undefined
                         ? "border-slate-200 text-slate-400 cursor-default"
-                        : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50 text-slate-700"
+                        : "border-slate-200 hover:border-emerald-400 hover:bg-slate-50 text-slate-700"
                     }`}
                   >
                     <span className="font-semibold text-slate-400 mr-2.5">{label}.</span>
@@ -409,16 +409,16 @@ function ExamPageContent() {
             <button
               onClick={() => setCurrentIndex(i => i - 1)}
               disabled={currentIndex === 0}
-              className="px-5 py-2 border border-slate-200 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition disabled:opacity-30 text-sm"
+              className="px-5 py-2 border border-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition disabled:opacity-30 text-sm"
             >
-              ← Previous
+              Previous
             </button>
             <button
               onClick={() => setCurrentIndex(i => i + 1)}
               disabled={currentIndex === questions.length - 1}
-              className="px-5 py-2 bg-slate-950 text-white font-medium rounded-xl hover:bg-slate-800 transition disabled:opacity-30 text-sm"
+              className="px-5 py-2 bg-slate-950 text-white font-medium rounded-lg hover:bg-slate-800 transition disabled:opacity-30 text-sm"
             >
-              Next →
+              Next
             </button>
           </div>
         </div>

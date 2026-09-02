@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ClipboardCheck, MessageSquareText, UserRound } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "./AuthProvider";
+import LegalFooter from "./LegalFooter";
 
 export default function Sidebar() {
   const { user } = useAuth();
@@ -12,7 +13,7 @@ export default function Sidebar() {
 
   const isActive = (href: string) => pathname === href;
   const linkClass = (href: string) =>
-    `px-3 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium flex items-center gap-2.5 ${
+    `px-3 py-2.5 rounded-lg transition-colors duration-150 text-sm font-medium flex items-center gap-2.5 ${
       isActive(href)
         ? "bg-white text-slate-950"
         : "text-slate-400 hover:text-white hover:bg-white/8"
@@ -93,7 +94,7 @@ export default function Sidebar() {
         >
           Sign out
         </button>
-        <p className="mt-4 text-xs text-slate-700">© 2025 CheckrideAI</p>
+        <div className="mt-4"><LegalFooter dark /></div>
       </div>
     </nav>
   );

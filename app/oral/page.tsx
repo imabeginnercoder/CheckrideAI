@@ -358,7 +358,7 @@ function OralPageContent() {
         </div>
       </header>
 
-      <div className="h-1 bg-slate-200"><div className="h-full bg-slate-950 transition-all" style={{ width: `${progress}%` }} /></div>
+      <div className="h-1 bg-slate-200"><div className="h-full bg-slate-950 transition-colors" style={{ width: `${progress}%` }} /></div>
 
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4 py-6 sm:px-6 sm:py-10">
         <div className="flex flex-wrap items-center justify-between gap-3">

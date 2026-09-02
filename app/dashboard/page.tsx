@@ -9,6 +9,7 @@ import CheckrideCountdown from "./CheckrideCountdown";
 import OnboardingTour from "./OnboardingTour";
 import { AnimatedDial, CategoryBar, CategoryMasteryTrend, OralSessionHistory, ScoreOverTimeChart, SpacedRepetitionQueue } from "./DashboardWidgets";
 import type { CategoryStat, OralSessionRow, ScoreRow } from "./types";
+import { ListSkeleton, Skeleton } from "../components/Skeleton";
 
 type InProgressSession = {
   currentIndex: number;
@@ -135,12 +136,12 @@ function DashboardContent() {
 
       {/* In-progress session banner */}
       {inProgress && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shrink-0" />
+            <div className="h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
             <div>
-              <p className="text-sm font-semibold text-indigo-900">Practice session in progress</p>
-              <p className="text-xs text-indigo-600 mt-0.5">
+              <p className="text-sm font-semibold text-emerald-950">Practice session in progress</p>
+              <p className="mt-0.5 text-xs text-emerald-800">
                 {inProgress.selectedCategories.join(", ")} · Question {inProgress.currentIndex + 1} of {inProgress.questions.length} · {Object.keys(inProgress.answers).length} answered
               </p>
             </div>
@@ -148,7 +149,7 @@ function DashboardContent() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => { sessionStorage.removeItem(practiceSessionKey); setInProgress(null); }}
-              className="text-xs font-medium text-indigo-400 hover:text-indigo-700 transition px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-950"
             >
               Discard
             </button>
@@ -164,23 +165,23 @@ function DashboardContent() {
 
       {/* Dials */}
       <div className="flex gap-4 mb-4">
-        <AnimatedDial percentage={avgPractice} label="Avg Practice Score" color="#4f46e5" count={practiceScores.length} />
-        <AnimatedDial percentage={avgExam} label="Avg Exam Score" color="#7c3aed" count={examScores.length} />
+        <AnimatedDial percentage={avgPractice} label="Avg Practice Score" color="#047857" count={practiceScores.length} />
+        <AnimatedDial percentage={avgExam} label="Avg Exam Score" color="#334155" count={examScores.length} />
       </div>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="bg-white rounded-lg border border-slate-200 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Questions Answered</p>
           <p className="text-3xl font-bold text-slate-900">{totalAnswered}</p>
           <p className="text-xs text-slate-400 mt-1">across all sessions</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="bg-white rounded-lg border border-slate-200 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sessions Completed</p>
           <p className="text-3xl font-bold text-slate-900">{totalSessions}</p>
           <p className="text-xs text-slate-400 mt-1">practice sessions</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <div className="bg-white rounded-lg border border-slate-200 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Score Trend</p>
           {recentTrend ? (
             <>
@@ -195,7 +196,7 @@ function DashboardContent() {
             </>
           ) : (
             <>
-              <p className="text-3xl font-bold text-slate-200">—</p>
+              <p className="text-lg font-bold text-slate-400">Not enough data</p>
               <p className="text-xs text-slate-400 mt-1">more sessions needed</p>
             </>
           )}
@@ -212,14 +213,14 @@ function DashboardContent() {
       <OralSessionHistory sessions={oralSessions} formatDate={formatDate} />
 
       {/* Performance by Category */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mb-6">
         <div className="px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">Performance by Category</h2>
           <p className="text-slate-400 text-xs mt-0.5">{totalAnswered} questions answered across all sessions</p>
         </div>
 
         {loading ? (
-          <div className="p-10 text-center text-slate-400 text-sm">Loading analytics...</div>
+          <div className="px-6 py-2"><ListSkeleton rows={5} /></div>
         ) : categoryStats.length === 0 ? (
           <div className="p-10 text-center text-slate-400 text-sm">Complete a practice session to see category performance.</div>
         ) : (
@@ -233,7 +234,7 @@ function DashboardContent() {
 
       {/* Study Recommendations */}
       {(weakCategories.length > 0 || strongCategories.length > 0) && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mb-6">
           <div className="px-6 py-5 border-b border-slate-100">
             <h2 className="text-base font-semibold text-slate-900">Study Recommendations</h2>
             <p className="text-slate-400 text-xs mt-0.5">Based on your performance across all categories</p>
@@ -262,7 +263,7 @@ function DashboardContent() {
                           <p className="text-xs text-slate-500 mt-0.5">
                             {Math.round(cat.percentage)}% correct across {cat.total} questions.
                             {cat.percentage < 50
-                              ? " Significant weak area — prioritize before your checkride."
+                              ? " Significant weak area. Prioritize it before your checkride."
                               : " A bit more review here will make a difference."}
                           </p>
                         </div>
@@ -280,11 +281,11 @@ function DashboardContent() {
             )}
             {strongCategories.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-3">Strong Areas</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-emerald-700">Strong Areas</p>
                 <div className="space-y-2.5">
                   {strongCategories.map((cat) => (
                     <div key={cat.category} className="flex items-start gap-3">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-2 shrink-0" />
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-600" />
                       <div>
                         <p className="text-sm font-medium text-slate-800">{cat.category}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
@@ -301,13 +302,15 @@ function DashboardContent() {
       )}
 
       {/* Score History */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">Score History</h2>
           <p className="text-slate-400 text-xs mt-0.5">Recent practice sessions and exams</p>
         </div>
         {loading ? (
-          <div className="p-10 text-center text-slate-400 text-sm">Loading scores...</div>
+          <div className="space-y-3 px-6 py-5" role="status" aria-label="Loading score history">
+            {Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-8 w-full" />)}
+          </div>
         ) : displayScores.length === 0 ? (
           <div className="p-10 text-center text-slate-400 text-sm">No scores yet. Complete a practice set to see your history.</div>
         ) : (
@@ -329,7 +332,7 @@ function DashboardContent() {
                   <div className="flex items-center gap-2.5">
                     <span className="text-sm font-semibold text-slate-800">{s.score}/{s.total_questions}</span>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
-                      isPassing ? "bg-indigo-50 text-indigo-700" : "bg-rose-50 text-rose-700"
+                      isPassing ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-700"
                     }`}>
                       {pct}%
                     </span>

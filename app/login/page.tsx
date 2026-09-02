@@ -9,6 +9,7 @@ import { aircraftOptions } from "@/lib/profile";
 import { supabase } from "@/lib/supabase/client";
 import { useAuthState } from "../components/AuthProvider";
 import FormStatus from "../components/FormStatus";
+import { Skeleton } from "../components/Skeleton";
 
 function safeNextPath(value: string | null) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
@@ -103,7 +104,7 @@ function LoginForm() {
           </p>
         </section>
 
-        <section className="mx-auto w-full max-w-md rounded-xl border border-slate-200 bg-white p-8">
+        <section className="mx-auto w-full max-w-md rounded-lg border border-slate-200 bg-white p-8">
           <div className="mb-7">
             <Link href="/" className="mb-6 flex items-center gap-3 lg:hidden">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-white">CA</div>
@@ -207,6 +208,11 @@ function LoginForm() {
             >
               {submitting ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
             </button>
+            {mode === "signup" && (
+              <p className="text-center text-xs leading-5 text-slate-500">
+                By creating an account, you agree to the <Link href="/terms" className="font-semibold text-slate-700 hover:text-slate-950">Terms</Link> and acknowledge the <Link href="/privacy" className="font-semibold text-slate-700 hover:text-slate-950">Privacy Policy</Link>.
+              </p>
+            )}
           </form>
 
           <button
@@ -227,7 +233,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-100 p-6"><div className="w-full max-w-md border-y border-slate-300 py-8"><Skeleton className="h-8 w-48" /><Skeleton className="mt-8 h-11 w-full" /><Skeleton className="mt-4 h-11 w-full" /><Skeleton className="mt-6 h-11 w-full" /></div></div>}>
       <LoginForm />
     </Suspense>
   );

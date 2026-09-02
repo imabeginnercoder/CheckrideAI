@@ -9,6 +9,7 @@ import { authErrorMessage, isMissingDatabaseColumn, profileErrorMessage } from "
 import { useAuth } from "../components/AuthProvider";
 import FormStatus from "../components/FormStatus";
 import ProtectedAppShell from "../components/ProtectedAppShell";
+import { Skeleton } from "../components/Skeleton";
 
 type UsageSummary = {
   request_count: number;
@@ -106,6 +107,20 @@ function ProfileContent() {
   const daysRemaining = daysUntilDate(profile.checkride_date);
   const estimatedCost = usage ? usage.estimated_cost_microusd / 1_000_000 : 0;
 
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-4xl p-8" role="status" aria-label="Loading profile">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="mt-7 h-8 w-64" />
+        <Skeleton className="mt-3 h-4 w-80 max-w-full" />
+        <div className="mt-8 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <Skeleton className="h-96 w-full" />
+          <div className="space-y-5"><Skeleton className="h-44 w-full" /><Skeleton className="h-52 w-full" /></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-4xl p-8">
       <div className="mb-8">
@@ -118,7 +133,7 @@ function ProfileContent() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <form onSubmit={save} className="rounded-xl border border-slate-200 bg-white p-6">
+        <form onSubmit={save} className="rounded-lg border border-slate-200 bg-white p-6">
           <h2 className="text-base font-bold text-slate-900">Study profile</h2>
           <div className="mt-5 space-y-4">
             <div>
@@ -142,7 +157,7 @@ function ProfileContent() {
         </form>
 
         <div className="space-y-5">
-          <section className="rounded-xl border border-slate-200 bg-slate-950 p-6 text-white">
+          <section className="rounded-lg border border-slate-200 bg-slate-950 p-6 text-white">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-400">Checkride countdown</p>
             {daysRemaining === null ? (
               <p className="mt-4 text-sm leading-6 text-slate-300">Add a date to turn your study history into a visible timeline.</p>
@@ -153,7 +168,7 @@ function ProfileContent() {
             )}
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-white p-6">
+          <section className="rounded-lg border border-slate-200 bg-white p-6">
             <h2 className="text-base font-bold text-slate-900">AI usage</h2>
             <dl className="mt-4 grid grid-cols-2 gap-4">
               <div><dt className="text-xs text-slate-400">Requests</dt><dd className="mt-1 text-xl font-bold text-slate-900">{usage?.request_count ?? 0}</dd></div>

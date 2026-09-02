@@ -40,7 +40,7 @@ export default function ResetPasswordPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7f8f6] p-6">
-      <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8">
+      <section className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-8">
         <h1 className="text-2xl font-bold text-slate-950">Choose a new password</h1>
         <p className="mt-2 text-sm leading-6 text-slate-500">Use at least 8 characters with a letter and a number.</p>
         {complete ? (

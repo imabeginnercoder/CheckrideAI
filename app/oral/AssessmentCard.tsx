@@ -11,7 +11,7 @@ export default function AssessmentCard({ assessment }: { assessment: OralAssessm
   return (
     <section className="space-y-5" aria-labelledby="oral-scorecard-title">
       <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-        <div className="rounded-xl border border-slate-200 bg-slate-950 p-6 text-white">
+        <div className="rounded-lg border border-slate-200 bg-slate-950 p-6 text-white">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Practice readiness</p>
           <p className="mt-4 text-5xl font-bold">{assessment.overallScore}</p>
           <p className="mt-1 text-sm text-slate-300">out of 100</p>
@@ -19,7 +19,7 @@ export default function AssessmentCard({ assessment }: { assessment: OralAssessm
             {readinessLabels[assessment.readiness]}
           </span>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
+        <div className="rounded-lg border border-slate-200 bg-white p-6">
           <h2 id="oral-scorecard-title" className="text-lg font-bold text-slate-950">Session summary</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">{assessment.summary}</p>
           {assessment.strengths.length > 0 && (
@@ -38,7 +38,7 @@ export default function AssessmentCard({ assessment }: { assessment: OralAssessm
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white">
+      <div className="rounded-lg border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-6 py-5">
           <h2 className="text-base font-bold text-slate-950">ACS areas to review</h2>
           <p className="mt-1 text-xs text-slate-500">Practice feedback aligned to FAA-S-ACS-6C. This is not an official FAA evaluation.</p>

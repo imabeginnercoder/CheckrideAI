@@ -8,6 +8,7 @@ import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "../components/AuthProvider";
 import ProtectedAppShell from "../components/ProtectedAppShell";
+import { ListSkeleton, Skeleton } from "../components/Skeleton";
 
 type Question = {
   id: string;
@@ -189,15 +190,15 @@ function PracticeQuizContent() {
           <p className="text-slate-500 mt-0.5 text-sm">Pick which categories you want to practice.</p>
         </div>
 
-        <div className="bg-white p-6 rounded-xl w-full max-w-2xl border border-slate-200">
+        <div className="bg-white p-6 rounded-lg w-full max-w-2xl border border-slate-200">
 
           {loading ? (
-            <p className="text-slate-400">Loading categories...</p>
+            <div className="py-1"><ListSkeleton rows={6} /></div>
           ) : (
             <>
               {/* Select All */}
-              <label className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all mb-3 ${
-                allSelected ? "border-indigo-500 bg-indigo-50" : "border-slate-200 hover:border-indigo-300"
+              <label className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-colors mb-3 ${
+                allSelected ? "border-emerald-700 bg-emerald-50" : "border-slate-200 hover:border-emerald-400"
               }`}>
                 <input
                   type="checkbox"
@@ -207,7 +208,7 @@ function PracticeQuizContent() {
                       ? setSelectedCategories([])
                       : setSelectedCategories([...categories])
                   }
-                  className="w-5 h-5 accent-indigo-600"
+                  className="h-5 w-5 accent-emerald-700"
                 />
                 <span className="font-bold text-slate-700">Select All Categories</span>
               </label>
@@ -216,17 +217,17 @@ function PracticeQuizContent() {
                 {categories.map((cat) => (
                   <label
                     key={cat}
-                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-center gap-4 p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                       selectedCategories.includes(cat)
-                        ? "border-indigo-500 bg-indigo-50"
-                        : "border-slate-200 hover:border-indigo-300"
+                        ? "border-emerald-700 bg-emerald-50"
+                        : "border-slate-200 hover:border-emerald-400"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={selectedCategories.includes(cat)}
                       onChange={() => toggleCategory(cat)}
-                      className="w-5 h-5 accent-indigo-600"
+                      className="h-5 w-5 accent-emerald-700"
                     />
                     <span className="font-semibold text-slate-700">{cat}</span>
                   </label>
@@ -239,7 +240,7 @@ function PracticeQuizContent() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
               <label className="text-sm font-bold text-slate-700">Number of Questions</label>
-              <span className="text-sm font-semibold text-indigo-600">
+              <span className="text-sm font-semibold text-emerald-800">
                 {questionCount} questions (~{estimatedMinutes} min)
               </span>
             </div>
@@ -250,7 +251,7 @@ function PracticeQuizContent() {
               step={1}
               value={questionCount}
               onChange={(e) => setQuestionCount(Number(e.target.value))}
-              className="w-full accent-indigo-600"
+              className="w-full accent-emerald-700"
             />
             <div className="flex justify-between text-xs text-slate-400 mt-1">
               <span>5</span>
@@ -261,7 +262,7 @@ function PracticeQuizContent() {
           <button
             onClick={() => startQuiz()}
             disabled={selectedCategories.length === 0}
-            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-xl hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full bg-slate-950 text-white font-semibold py-3 rounded-lg hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Start Practice Set
           </button>
@@ -280,9 +281,9 @@ function PracticeQuizContent() {
           <p className="text-slate-500 mt-0.5 text-sm">Review your score and choose what to do next.</p>
         </div>
 
-        <div className="bg-white p-8 rounded-xl text-center border border-slate-200 w-full max-w-md">
+        <div className="bg-white p-8 rounded-lg text-center border border-slate-200 w-full max-w-md">
           <div className="my-8">
-            <span className="text-6xl font-black text-indigo-600">{score}</span>
+            <span className="text-6xl font-black text-emerald-700">{score}</span>
             <span className="text-2xl text-slate-400 font-bold"> / {questions.length}</span>
           </div>
           {isSaving ? (
@@ -292,7 +293,7 @@ function PracticeQuizContent() {
           )}
           <button
             onClick={() => { sessionStorage.removeItem(practiceSessionKey); setScreen("select"); setQuestions([]); setAnswers({}); setCurrentIndex(0); setScore(0); }}
-            className="w-full bg-slate-950 text-white px-6 py-3 rounded-xl hover:bg-slate-800 font-semibold transition"
+            className="w-full bg-slate-950 text-white px-6 py-3 rounded-lg hover:bg-slate-800 font-semibold transition"
           >
             Practice Again
           </button>
@@ -361,36 +362,34 @@ function PracticeQuizContent() {
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-xl w-full border border-slate-200 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
-
-            <span className="ml-4 px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-bold uppercase tracking-wider rounded-full">
+          <div className="relative w-full overflow-hidden rounded-lg border border-slate-200 bg-white p-8">
+            <span className="rounded-md bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800">
               {question.category}
             </span>
             
             {question.image_url && (
-                <div className="ml-4 mt-4 mb-6">
+                <div className="mb-6 mt-4">
                   <Image
                     src={question.image_url}
                     alt="Question reference image"
                     width={900}
                     height={500}
                     unoptimized
-                    className="rounded-xl border border-slate-200 max-w-full max-h-96 object-contain"
+                    className="rounded-lg border border-slate-200 max-w-full max-h-96 object-contain"
                   />
                 </div>
             )}
 
-            <h2 className="ml-4 mt-4 mb-8 text-xl font-semibold leading-8 text-slate-800">
+            <h2 className="mb-8 mt-4 text-xl font-semibold leading-8 text-slate-800">
               {question.question_text}
             </h2>
 
-            <div className="ml-4 flex flex-col space-y-4">
+            <div className="flex flex-col space-y-4">
               {(optionOrders[currentIndex] ?? ["option_a", "option_b", "option_c"]).map((opt, i) => {
                 const label = ["A", "B", "C"][i];
                 const isSelected = selectedAnswer === opt;
                 const isRight = opt === question.correct_answer;
-                let style = "border-slate-200 hover:border-indigo-300 text-slate-700 hover:bg-slate-50";
+                let style = "border-slate-200 hover:border-emerald-400 text-slate-700 hover:bg-slate-50";
                 if (selectedAnswer !== undefined) {
                   if (isRight) style = "border-green-500 bg-green-50 text-green-900";
                   else if (isSelected) style = "border-rose-500 bg-rose-50 text-rose-900";
@@ -401,7 +400,7 @@ function PracticeQuizContent() {
                     key={opt}
                     onClick={() => handleAnswer(opt)}
                     disabled={selectedAnswer !== undefined}
-                    className={`p-5 border-2 rounded-xl text-left transition-all font-medium ${style}`}
+                    className={`p-5 border-2 rounded-lg text-left transition-colors font-medium ${style}`}
                   >
                     <span className="font-bold mr-2 text-slate-400">{label})</span>
                     {question[opt]}
@@ -411,10 +410,10 @@ function PracticeQuizContent() {
             </div>
 
             {selectedAnswer !== undefined && (
-              <div className="ml-4 mt-8">
-                <div className={`p-6 rounded-xl ${isCorrect ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200"}`}>
+              <div className="mt-8">
+                <div className={`p-6 rounded-lg ${isCorrect ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200"}`}>
                   <h3 className={`font-extrabold text-lg ${isCorrect ? "text-emerald-700" : "text-rose-700"}`}>
-                    {isCorrect ? "✓ Correct!" : "✗ Incorrect."}
+                    {isCorrect ? "Correct" : "Incorrect"}
                   </h3>
                   <p className={`mt-2 font-medium leading-relaxed ${isCorrect ? "text-emerald-900" : "text-rose-900"}`}>
                     {question.explanation}
@@ -429,24 +428,24 @@ function PracticeQuizContent() {
             <button
               onClick={() => setCurrentIndex((i) => i - 1)}
               disabled={currentIndex === 0}
-              className="px-6 py-3 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:border-indigo-300 transition disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-lg border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-700 transition-colors hover:border-emerald-500 disabled:cursor-not-allowed disabled:opacity-30"
             >
-              ← Previous
+              Previous
             </button>
 
             <div className="flex gap-3">
               {allAnswered && (
                 <button
                   onClick={handleFinish}
-                  className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition"
+                  className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition"
                 >
-                  Finish & Save Score ✓
+                  Finish and save score
                 </button>
               )}
               <button
                 onClick={() => setCurrentIndex((i) => i + 1)}
                 disabled={isLast}
-                className="px-6 py-3 bg-slate-950 text-white font-semibold rounded-xl hover:bg-slate-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-slate-950 text-white font-semibold rounded-lg hover:bg-slate-800 transition disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Next Question ➔
               </button>
@@ -462,7 +461,7 @@ function PracticeQuizContent() {
 export default function PracticeQuiz() {
   return (
     <ProtectedAppShell focus>
-      <Suspense fallback={<div className="p-8 text-sm text-slate-400">Loading practice setup...</div>}>
+      <Suspense fallback={<div className="mx-auto max-w-4xl p-8"><Skeleton className="h-7 w-48" /><div className="mt-8 border-y border-slate-300 py-2"><ListSkeleton rows={6} /></div></div>}>
         <PracticeQuizContent />
       </Suspense>
     </ProtectedAppShell>
